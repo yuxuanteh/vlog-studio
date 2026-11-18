@@ -1,0 +1,62 @@
+# Vlog Studio settings. The setup skill writes vlog.toml (next to this file) from your answers.
+# Relative paths are relative to this studio folder. Use forward slashes, also on Windows.
+
+[paths]
+trips = "D:/MyChannel/trips"    # one folder per trip: raw/ (your footage), work/, videos/<id>/{preview,publish}
+models = "models"               # speech and picture models live here (not synced)
+ffmpeg_bin = ""                 # folder containing ffmpeg; empty = use ffmpeg from PATH
+exiftool = ""                   # the exiftool program; empty = from PATH (reads when and where a clip was filmed)
+music_library = ""              # folder of music tracks ("Title - Artist.mp3"); empty = <folder holding trips>/music
+music_used = ""                 # the used-list (a Markdown table); empty = <folder holding trips>/music-used.md
+photo_libraries = []            # other folders where photos named in edit lists ("P:DSC0123") may be found
+
+[components]                    # what you chose to install (setup_studio.py keeps this up to date)
+whisper = true                  # writes down what you say: needed for every video with a voice
+picture = true                  # OpenCV: shake and sharpness of clips, steadying, face finding, tracking
+music_fit = false               # fits music tracks to the cut
+cutout = false                  # cuts a person out of a frame for thumbnails and covers
+align = false                   # exact word times with a forced aligner (large; Whisper alone works without it)
+
+[formats]
+wide = true                     # 16:9 videos for YouTube and similar
+tall = true                     # 9:16 shorts / Reels / TikTok
+final_wide = "1080p"            # "1080p" or "4k": the size of a finished 16:9 video (4K takes about four times as long)
+default = "wide"                # what a new video is when you do not say: "wide" | "tall" | "both"
+
+[look]
+steady = true                   # shaky shots are steadied by themselves (a shot can still be forced with ^ or skipped with ~)
+level_brightness = true         # brightness is evened out from shot to shot; false = colours exactly as filmed
+
+[platforms]
+post_to = ["youtube"]           # where you post: youtube, youtube_shorts, instagram, facebook, tiktok, xiaohongshu, bilibili ...
+                                # (each platform's own limits and habits are in the skill's references/platforms.md)
+
+[channel]
+name = "My Channel"
+presenter = "Your Name"         # name tag line 1
+presenter_title = ""            # name tag line 2 (optional, honest)
+credits = ""                    # small line on the end card, e.g. "Filmed by ... · Edited with Claude"; "" = none
+end_head = "Thanks for watching"
+end_next = "Watch another"
+logo_watermark = ""             # a small logo for the top-right corner (path relative to the folder holding trips/); "" = none
+logo_seal = ""                  # a larger logo for title moments; "" = none
+
+[language]
+narration = "en"                # the language you speak (Whisper code: en, zh, ja, ms, ...)
+length_unit = "words"           # "cjk" for Chinese / Japanese (subtitles counted in characters), else "words"
+pace = 2.6                      # words (or characters) a second, for narration that is written but not recorded yet
+subtitle_second = ""            # a translated subtitle file ("en", "zh", ...); "" = none
+subtitle_third = ""             # a second translation; "" = none
+fixes = []                      # words the speech model always mishears: [["heard", "meant"], ...]
+words = []                      # names a Chinese word splitter must keep whole
+meta = []                       # things you say to the editor, not the viewer ("I filmed that too"): cut by default
+
+[ui]
+language = "en"                 # the review and editing pages and the sheets: "en" | "zh"
+
+[whisper]
+model = "models/faster-whisper-large-v3"
+device = "cpu"                  # "cuda" with an NVIDIA graphics card
+compute_type = "int8"           # "float16" on a graphics card
+
+[fonts]                          # written by `setup_studio.py install fonts`

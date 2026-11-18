@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>审片</title>
+<style>
+:root{
+  --bg:#f6f4ef; --panel:#fffdf8; --ink:#22201c; --mute:#7a746a; --line:#e3ded3;
+  --accent:#b8860b; --accent-ink:#fff; --bad:#c0392b; --bad-bg:#fbe3df; --now:#2e86de; --now-bg:#dbeafe; --ok:#1e7d4f; --ok-bg:#dcf3e6;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#1b1a17; --panel:#24221e; --ink:#ece7dc; --mute:#a39c8f; --line:#3a372f;
+    --accent:#e0b44a; --accent-ink:#1b1a17; --bad:#ff7a6b; --bad-bg:#4a2420; --now:#7cb7ff; --now-bg:#1f3550; --ok:#6fd49c; --ok-bg:#183a29;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Microsoft YaHei","PingFang SC","Noto Sans SC",sans-serif}
+header{position:sticky;top:0;z-index:5;background:var(--panel);border-bottom:1px solid var(--line);padding:8px 16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+header h1{font-size:17px;margin:0 6px 0 0}
+select,button,input{font:inherit;font-size:14px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;padding:4px 10px}
+button{cursor:pointer}
+button:disabled{opacity:.45;cursor:default}
+a{color:var(--accent)}
+#status{margin-left:auto;font-size:13px;color:var(--mute)}
+#status.dirty{color:var(--bad);font-weight:600}
+main{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:14px;padding:12px 16px 40px;max-width:1400px;margin:0 auto}
+@media (max-width:900px){main{grid-template-columns:1fr}}
+#vidbox{background:#000;border-radius:10px;overflow:hidden;display:flex;justify-content:center}
+video{max-width:100%;max-height:58vh;display:block}
+#info{margin:8px 0 4px;font-size:14px;display:flex;flex-wrap:wrap;gap:4px 14px;align-items:baseline}
+#info .tc{font-variant-numeric:tabular-nums;font-weight:600}
+#info .clip{color:var(--accent);font-weight:600}
+#info .sub{color:var(--mute)}
+#tags{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+#tags button{border-radius:16px;padding:3px 11px}
+#tags button kbd{font-size:11px;color:var(--mute);margin-right:4px}
+#tags button:hover{border-color:var(--accent)}
+#noteText{width:100%;padding:6px 10px}
+.hint{font-size:12px;color:var(--mute);margin-top:4px}
+#strip{grid-column:1/-1;display:flex;gap:2px;overflow-x:auto;padding:6px 2px 10px;scroll-behavior:smooth}
+.shot{flex:none;position:relative;border:2px solid transparent;border-radius:5px;cursor:pointer;background:var(--panel);overflow:hidden}
+.shot img{display:block;height:54px;width:100%;object-fit:cover;opacity:.9}
+.shot .lab{position:absolute;left:2px;bottom:1px;font-size:10px;color:#fff;text-shadow:0 0 3px #000,0 0 2px #000;white-space:nowrap}
+.shot.short{border-color:var(--bad)}
+.shot.cur{border-color:var(--now);box-shadow:0 0 0 1px var(--now)}
+.shot .dot{position:absolute;top:2px;right:3px;width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 1px #fff}
+#side{min-width:0}
+#side h2{font-size:15px;margin:0 0 6px;display:flex;gap:8px;align-items:center}
+#notes{display:flex;flex-direction:column;gap:6px;max-height:70vh;overflow-y:auto}
+.note{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:13px}
+.note.sel{border-color:var(--accent)}
+.note .top{display:flex;gap:6px;align-items:center}
+.note .tc{font-variant-numeric:tabular-nums;font-weight:600;cursor:pointer;color:var(--now)}
+.note .clip{color:var(--mute)}
+.note .x{margin-left:auto;border:none;background:none;color:var(--mute);padding:0 4px}
+.note .t{display:inline-block;background:var(--bad-bg);color:var(--bad);border-radius:10px;padding:0 7px;margin:3px 3px 0 0;font-size:12px}
+.note .txt{margin-top:3px;white-space:pre-wrap}
+.note .sb{color:var(--mute);font-size:12px;margin-top:2px}
+.empty{color:var(--mute);font-size:13px}
+#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:7px 14px;border-radius:8px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none}
+#toast.on{opacity:1}
+</style>
+</head>
+<body>
+<header>
+  <h1>审片</h1>
+  <select id="vid"></select>
+  <span id="built" class="hint"></span>
+  <a href="/" id="edLink" title="去字幕剪辑页，同一支影片、现在讲到的这一句（键盘 E）">字幕剪辑（这一句）↗</a>
+  <select id="trip" title="旅行"></select>
+  <span id="status">载入中…</span>
+</header>
+<main>
+  <section>
+    <div id="vidbox"><video id="v" controls preload="auto"></video></div>
+    <div id="info"><span class="tc" id="tc">0:00.0</span><span class="clip" id="clip"></span><span class="sub" id="sub"></span></div>
+    <div id="tags"></div>
+    <input id="noteText" placeholder="想多说一句就打在这里（可以不打），Enter 存好">
+    <div class="hint">暂停在有问题的地方 → 点上面的按钮（或按数字键）。会自动记下时间、是哪个镜头、在讲哪句。笔记自动保存。<br><b>键盘（跟棚拍的审片页一样）：</b>空格＝播放 / 暂停 · ← →＝退 / 进 2 秒（按住 Shift 是 0.5 秒）· ↑ ↓＝上一个 / 下一个镜头 · , .＝一格一格 · 1–9、0＝点第几个意见 · E＝去字幕剪辑页的这一句</div>
+  </section>
+  <aside id="side">
+    <h2>这一支的笔记 <span id="count" class="hint"></span></h2>
+    <div id="notes"></div>
+  </aside>
+  <div id="strip"></div>
+</main>
+<div id="toast"></div>
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const V = $("#v");
+let VID = null, TL = null, NOTES = [], cur = -1, active = null, saveTimer = null, dirty = false;
+const TAGS = ["太短", "再长一点", "太长", "镜头晃", "换别的镜头", "跟前一个太像", "画面跟讲的不对", "有我的提示声/人声", "声音画面不同步",
+              "停顿放错地方", "这里让旁白停一下", "字幕有错", "要打码", "事实要查", "其他"];   // 要打码 goes to the face decisions
+
+const fmt = t => `${Math.floor(t / 60)}:${(t % 60).toFixed(1).padStart(4, "0")}`;
+function toast(m){ const t = $("#toast"); t.textContent = m; t.classList.add("on"); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove("on"), 2200); }
+function shotAt(t){ if (!TL) return -1; const s = TL.shots; for (let k = s.length - 1; k >= 0; k--) if (t >= s[k].t - 1e-3) return k; return 0; }
+function subAt(t){ if (!TL) return ""; const x = TL.subs.find(s => t >= s.s - 0.05 && t <= s.e + 0.05); return x ? x.text : ""; }
+function status(){ const s = $("#status"); s.textContent = dirty ? "保存中…" : (NOTES.length ? "已保存" : ""); s.className = dirty ? "dirty" : ""; }
+
+// ---------- notes ----------
+function makeNote(t){
+  const k = shotAt(t), sh = TL.shots[k];
+  const n = {id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5), t: +t.toFixed(2), k, stem: sh.stem,
+             src: sh.src != null ? +(sh.src + (t - sh.t) * (sh.speed || 1)).toFixed(2) : null, block: sh.block, shot_t: sh.t, shot_d: sh.d,
+             sub: subAt(t), tags: [], text: "", at: new Date().toISOString()};
+  NOTES.push(n); NOTES.sort((a, b) => a.t - b.t);
+  return n;
+}
+function tag(name){
+  if (!TL) return;
+  V.pause();
+  const t = V.currentTime;
+  let n = active && Math.abs(active.t - t) < 0.6 ? active : null;
+  if (!n) n = makeNote(t);
+  if (!n.tags.includes(name)) n.tags.push(name); else n.tags = n.tags.filter(x => x !== name);
+  active = n;
+  $("#noteText").value = n.text;
+  drawNotes(); drawStripDots(); queueSave();
+  $("#noteText").focus();
+}
+function queueSave(){ dirty = true; status(); clearTimeout(saveTimer); saveTimer = setTimeout(save, 600); }
+async function save(){
+  clearTimeout(saveTimer);
+  const keep = NOTES.filter(n => n.tags.length || n.text.trim());
+  const r = await fetch(`/api/notes/${encodeURIComponent(VID)}`, {method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({notes: keep})}).then(r => r.json()).catch(e => ({ok: false, error: String(e)}));
+  if (!r.ok){ $("#status").textContent = "没存到！"; $("#status").className = "dirty";
+    alert(/fetch/i.test(r.error || "") ? "连不上审片程序（它被关掉了）。笔记还在这一页：先别关这一页，请 Claude 重新打开程序后再点一下任何按钮，就会存。" : (r.error || "保存失败")); return; }
+  dirty = false; status();
+}
+function drawNotes(){
+  const box = $("#notes"); box.innerHTML = "";
+  const list = NOTES.filter(n => n.tags.length || n.text.trim() || n === active);
+  $("#count").textContent = list.length ? `${list.length} 条` : "";
+  if (!list.length){ box.innerHTML = '<div class="empty">还没有笔记。暂停在有问题的地方，点上面的按钮。</div>'; return; }
+  list.forEach(n => {
+    const el = document.createElement("div"); el.className = "note" + (n === active ? " sel" : "");
+    el.innerHTML = `<div class="top"><span class="tc">${fmt(n.t)}</span><span class="clip">${n.stem}${n.src != null ? " · 原片 " + n.src.toFixed(1) + " 秒" : ""}</span><button class="x" title="删掉这条">✕</button></div>
+      <div>${n.tags.map(x => `<span class="t">${x}</span>`).join("")}</div>${n.text ? `<div class="txt"></div>` : ""}${n.sub ? `<div class="sb"></div>` : ""}`;
+    if (n.text) el.querySelector(".txt").textContent = n.text;
+    if (n.sub) el.querySelector(".sb").textContent = "「" + n.sub + "」";
+    el.querySelector(".tc").onclick = () => { V.currentTime = Math.max(0, n.t - 2); V.play(); };
+    el.querySelector(".x").onclick = e => { e.stopPropagation(); NOTES = NOTES.filter(x => x !== n); if (active === n) active = null; drawNotes(); drawStripDots(); queueSave(); };
+    el.onclick = () => { active = n; V.pause(); V.currentTime = n.t; $("#noteText").value = n.text; drawNotes(); };
+    box.appendChild(el);
+  });
+}
+$("#noteText").addEventListener("input", () => {
+  if (!TL) return;
+  if (!active){ V.pause(); active = makeNote(V.currentTime); }
+  active.text = $("#noteText").value; queueSave();
+  clearTimeout(drawNotes.h); drawNotes.h = setTimeout(drawNotes, 300);
+});
+$("#noteText").addEventListener("keydown", e => {
+  e.stopPropagation();
+  if (e.key === "Enter"){ e.preventDefault(); $("#noteText").blur(); active = null; $("#noteText").value = ""; drawNotes(); save(); toast("记下了"); }
+  if (e.key === "Escape"){ $("#noteText").blur(); }
+});
+
+// ---------- shot strip ----------
+function drawStrip(){
+  const box = $("#strip"); box.innerHTML = "";
+  TL.shots.forEach((s, k) => {
+    const el = document.createElement("div");
+    el.className = "shot" + (s.d < 2 ? " short" : ""); el.id = "s" + k;
+    el.style.width = Math.max(44, Math.min(260, s.d * 22)) + "px";
+    el.title = `${fmt(s.t)}  ${s.stem}  ${s.d.toFixed(1)} 秒` + (s.src != null ? `（原片从 ${s.src.toFixed(1)} 秒）` : "") + (s.d < 2 ? "  ← 很短" : "");
+    el.innerHTML = `<img loading="lazy" src="/thumb/${encodeURIComponent(VID)}/${k}" alt=""><span class="lab">${s.stem} ${s.d.toFixed(1)}s</span>`;
+    el.onclick = () => { V.currentTime = s.t + 0.05; };
+    box.appendChild(el);
+  });
+  drawStripDots();
+}
+function drawStripDots(){
+  document.querySelectorAll(".shot .dot").forEach(d => d.remove());
+  const ks = new Set(NOTES.filter(n => n.tags.length || n.text.trim()).map(n => n.k));
+  ks.forEach(k => { const el = document.getElementById("s" + k); if (el){ const d = document.createElement("span"); d.className = "dot"; el.appendChild(d); } });
+}
+// while it plays, the time and the shot follow every frame; while paused nothing is redrawn (it used to run 60 times
+// a second all the time; the studio page only listens to the video's own time events)
+function tick(){ if (!V.paused) update(); requestAnimationFrame(tick); }
+const goEdit = () => { if (VID) location.href = `/?vid=${encodeURIComponent(VID)}&t=${V.currentTime.toFixed(2)}`; };
+V.addEventListener("timeupdate", () => update());
+V.addEventListener("seeked", () => update());
+function update(){
+  const t = V.currentTime;
+  $("#tc").textContent = fmt(t);
+  const k = shotAt(t);
+  if (k !== cur && TL){
+    const old = document.getElementById("s" + cur); if (old) old.classList.remove("cur");
+    cur = k; const el = document.getElementById("s" + k);
+    if (el){ el.classList.add("cur"); el.scrollIntoView({inline: "center", block: "nearest"}); }
+    const s = TL.shots[k];
+    $("#clip").textContent = s ? `${s.stem}（第 ${k + 1} 个镜头，${s.d.toFixed(1)} 秒）` : "";
+  }
+  $("#sub").textContent = subAt(t);
+}
+
+// ---------- keys ----------
+document.addEventListener("keydown", e => {
+  if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
+  if (e.key === " "){ e.preventDefault(); V.paused ? V.play() : V.pause(); return; }
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  // the same keys as the studio review page: the director uses both
+  if (e.key === "ArrowLeft" || e.key === "ArrowRight"){
+    e.preventDefault();
+    V.currentTime = Math.max(0, V.currentTime + (e.key === "ArrowRight" ? 1 : -1) * (e.shiftKey ? 0.5 : 2));
+    return;
+  }
+  if ((e.key === "ArrowUp" || e.key === "ArrowDown") && TL){
+    e.preventDefault();
+    const k = Math.max(0, Math.min(TL.shots.length - 1, shotAt(V.currentTime) + (e.key === "ArrowDown" ? 1 : -1)));
+    V.currentTime = TL.shots[k].t + 0.05;
+    return;
+  }
+  if (e.key === "e" || e.key === "E"){ e.preventDefault(); if (dirty) save().then(goEdit); else goEdit(); return; }
+  if (e.key === "," || e.key === "."){ V.pause(); V.currentTime = Math.max(0, V.currentTime + (e.key === "." ? 1 : -1) / 30); return; }
+  const n = parseInt(e.key, 10);
+  if (n >= 1 && n <= 9){ e.preventDefault(); tag(TAGS[n - 1]); return; }
+  if (e.key === "0"){ e.preventDefault(); tag(TAGS[9]); }
+});
+TAGS.forEach((name, i) => {
+  const b = document.createElement("button");
+  b.innerHTML = (i < 10 ? `<kbd>${(i + 1) % 10}</kbd>` : "") + name;
+  b.onclick = () => tag(name);
+  $("#tags").appendChild(b);
+});
+window.addEventListener("beforeunload", e => { if (dirty){ e.preventDefault(); e.returnValue = ""; } });
+
+// ---------- load ----------
+async function load(vid){
+  if (dirty) await save();
+  VID = vid; TL = null; cur = -1; active = null;
+  try { localStorage.setItem("gs-review-vid", vid); } catch (e) {}
+  $("#status").textContent = "载入中…";
+  const [tl, nt] = await Promise.all([fetch(`/api/timeline/${encodeURIComponent(vid)}`).then(r => r.json()), fetch(`/api/notes/${encodeURIComponent(vid)}`).then(r => r.json())]);
+  if (tl.error){ $("#status").textContent = tl.error; return; }
+  TL = tl; NOTES = nt.notes || [];
+  V.src = `/video/${encodeURIComponent(vid)}`;
+  drawStrip(); drawNotes(); status();
+  const shortN = TL.shots.filter(s => s.d < 2).length;
+  if (shortN) toast(`有 ${shortN} 个镜头短于 2 秒（红框）`);
+}
+
+// ---------- shared by both pages (Round 4) ----------
+// Q18 the trip menu: the server works on one trip at a time; switching reloads the page on the new trip
+async function tripMenu(sel, isDirty){
+  const d = await fetch("/api/trips").then(r => r.json()).catch(() => null);
+  if (!d) return;
+  sel.innerHTML = "";
+  d.trips.forEach(t => { const o = document.createElement("option"); o.value = o.textContent = t; sel.appendChild(o); });
+  sel.value = d.current;
+  sel.onchange = async () => {
+    if (isDirty() && !confirm("还有没保存的修改，确定换别的旅行吗？")){ sel.value = d.current; return; }
+    await fetch(`/api/trip/${encodeURIComponent(sel.value)}`, {method: "POST", headers: {"Content-Type": "application/json"}, body: "{}"});
+    location.reload();
+  };
+}
+// Q19 the tools were updated: with nothing unsaved the server restarts itself and the page reloads ("已更新");
+// with unsaved edits a banner waits until they are saved
+function watchTools(isDirty){
+  let warned = false;
+  setInterval(async () => {
+    const d = await fetch(`/api/version?dirty=${isDirty() ? 1 : 0}`).then(r => r.json()).catch(() => null);
+    if (!d || !d.changed) return;
+    if (d.restart){
+      try { sessionStorage.setItem("gs-tools-updated", "1"); } catch (e) {}
+      setTimeout(() => location.reload(), 6000);
+    } else if (!warned){
+      warned = true;
+      const b = document.createElement("div");
+      b.textContent = "工具已更新：保存现在的修改后，页面会自动重新载入。";
+      b.style.cssText = "position:fixed;top:0;left:0;right:0;padding:8px;background:#ffd76a;color:#222;text-align:center;z-index:99";
+      document.body.appendChild(b);
+    }
+  }, 15000);
+  try {
+    if (sessionStorage.getItem("gs-tools-updated")){ sessionStorage.removeItem("gs-tools-updated");
+      setTimeout(() => { const s = document.querySelector("#status"); if (s) s.textContent = "工具已更新，已重新载入"; }, 1500); }
+  } catch (e) {}
+}
+(async () => {
+  tripMenu($("#trip"), () => dirty);
+  watchTools(() => dirty);
+  const d = await fetch("/api/reviews").then(r => r.json());
+  document.title = `审片 · ${d.trip}`;
+  const s = $("#vid");
+  d.videos.forEach(v => { const o = document.createElement("option"); o.value = v.id; o.textContent = v.id; o.dataset.built = v.built; s.appendChild(o); });
+  // ?vid=<video>&t=<seconds>: from the editing page's link: this video, from that sentence
+  const q = new URLSearchParams(location.search);
+  let want = q.get("vid"); if (!want) try { want = localStorage.getItem("gs-review-vid"); } catch (e) {}
+  if (want && d.videos.some(v => v.id === want)) s.value = want;
+  const built = () => { $("#built").textContent = "这一版：" + (s.selectedOptions[0] ? s.selectedOptions[0].dataset.built : ""); };
+  s.onchange = () => { built(); load(s.value); }; built();
+  $("#edLink").onclick = e => { e.preventDefault(); if (dirty) save().then(goEdit); else goEdit(); };
+  if (s.value){
+    await load(s.value);
+    const t = parseFloat(q.get("t"));
+    if (q.get("vid") === VID && isFinite(t)){
+      const seek = () => { V.currentTime = Math.max(0, t); update(); };
+      if (V.readyState >= 1) seek(); else V.addEventListener("loadedmetadata", seek, {once: true});
+      history.replaceState(null, "", "/review");
+    }
+  } else $("#status").textContent = "还没有手机版可以看";
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>

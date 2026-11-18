@@ -1,0 +1,15 @@
+{
+  "name": "vlog-studio",
+  "owner": {
+    "name": "GoldenSpike (金釘子)"
+  },
+  "description": "Claude Code plugin for travel vlogs and site-visit videos: from footage to finished videos and an upload package per platform.",
+  "plugins": [
+    {
+      "name": "vlog-studio",
+      "source": "./",
+      "version": "1.0.0",
+      "description": "Vlog pipeline from real footage: index, story plan, word-level editing and review pages, privacy check, music, horizontal and vertical finals, per-platform upload package. Hardware check and per-part install at setup."
+    }
+  ]
+}

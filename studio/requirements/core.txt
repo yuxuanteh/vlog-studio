@@ -1,0 +1,7 @@
+numpy
+pillow
+opencv-python-headless
+openpyxl
+fonttools
+scipy
+scenedetect

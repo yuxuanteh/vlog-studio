@@ -1,0 +1,1059 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>字幕剪辑</title>
+<style>
+:root{
+  --bg:#f6f4ef; --panel:#fffdf8; --ink:#22201c; --mute:#7a746a; --line:#e3ded3;
+  --accent:#b8860b; --accent-ink:#fff; --cut:#c0392b; --cut-bg:#fbe3df; --sel:#ffe9a8; --now:#2e86de;
+  --now-bg:#dbeafe; --note:#b35c00; --noword:#9aa0a6; --ok:#1e7d4f; --ok-bg:#dcf3e6;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#1b1a17; --panel:#24221e; --ink:#ece7dc; --mute:#a39c8f; --line:#3a372f;
+    --accent:#e0b44a; --accent-ink:#1b1a17; --cut:#ff7a6b; --cut-bg:#4a2420; --sel:#5a4a12; --now:#7cb7ff;
+    --now-bg:#1f3550; --note:#ffb066; --noword:#6d7278; --ok:#6fd49c; --ok-bg:#183a29;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 "Microsoft YaHei","PingFang SC","Noto Sans SC",sans-serif}
+header{position:sticky;top:0;z-index:5;background:var(--panel);border-bottom:1px solid var(--line);padding:10px 16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+header h1{font-size:17px;margin:0 8px 0 0}
+select,button{font:inherit;font-size:15px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;padding:5px 12px;cursor:pointer}
+button.main{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+button:disabled{opacity:.45;cursor:default}
+label{font-size:14px;color:var(--mute);display:flex;align-items:center;gap:4px;cursor:pointer}
+#status{font-size:14px;color:var(--mute);margin-left:auto}
+#status.dirty{color:var(--note);font-weight:600}
+#help{font-size:13px;color:var(--mute);padding:6px 16px;border-bottom:1px solid var(--line);background:var(--panel)}
+#help b{color:var(--ink);font-weight:600}
+main{max-width:1100px;margin:0 auto;padding:12px 16px 120px}
+.block{margin:18px 0 6px;font-size:13px;color:var(--mute);display:flex;gap:8px;align-items:center}
+.block::after{content:"";flex:1;border-top:1px solid var(--line)}
+.row{display:grid;grid-template-columns:62px 34px 1fr;gap:8px;padding:8px 10px;border:1px solid transparent;border-radius:10px;background:var(--panel);margin:4px 0}
+.row.cur{border-color:var(--accent)}
+.row.dirty{box-shadow:inset 3px 0 0 var(--note)}
+.row.drop{background:var(--now-bg)}
+.time{font-size:13px;color:var(--mute);padding-top:3px;font-variant-numeric:tabular-nums}
+.play{width:30px;height:30px;padding:0;border-radius:50%;font-size:13px}
+.text{font-size:18px;min-height:30px;padding:1px 6px;border-radius:6px;cursor:text;word-break:break-all}
+.text:hover{background:var(--bg)}
+.text .c{color:var(--cut);text-decoration:line-through;background:var(--cut-bg);border-radius:3px}
+.text .n{color:var(--mute);font-size:14px}
+.text.empty{color:var(--mute);font-style:italic}
+.edit{width:100%;font:inherit;font-size:18px;padding:2px 6px;border:2px solid var(--accent);border-radius:6px;background:var(--panel);color:var(--ink)}
+.words{display:flex;flex-wrap:wrap;gap:3px;margin-top:4px}
+.w{touch-action:none;font-size:14px;padding:1px 5px;border-radius:5px;background:var(--bg);border:1px solid var(--line);cursor:pointer;user-select:none}
+.w:hover{border-color:var(--mute)}
+.w.cut{color:var(--cut);text-decoration:line-through;background:var(--cut-bg);border-color:transparent}
+.w.unused{color:var(--noword);border-style:dashed;background:transparent;font-style:italic}
+.w.back{color:var(--ok);border-color:var(--ok);background:var(--ok-bg)}
+.text .add{color:var(--ok)}
+.w.notext{color:var(--note);border:1px dashed var(--note);background:transparent}
+.w.sel{background:var(--sel);border-color:var(--accent)}
+.w.now{background:var(--now-bg);border-color:var(--now);color:var(--now)}
+.wavebox{margin-top:6px;position:relative}
+.wavebox canvas{display:block;width:100%;height:150px;border-radius:6px;cursor:crosshair;touch-action:none}.wavehint{font-size:12px;color:var(--mute);margin-top:2px}
+.note{font-size:13px;color:var(--note);margin-top:2px}
+.raw{font-size:12px;color:var(--mute)}
+.noaudio{font-size:13px;color:var(--mute)}
+#checkbar{max-width:1100px;margin:8px auto 0;padding:0 16px;font-size:14px}
+#checksum{margin-left:8px;color:var(--mute)}
+#checklist{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+#checklist .ck{border:1px solid var(--note);color:var(--note);border-radius:6px;padding:2px 8px;cursor:pointer;font-size:13px}
+.marks{display:flex;flex-wrap:wrap;gap:4px;margin-top:3px}
+.mk{font-size:12px;border-radius:5px;padding:0 6px;cursor:pointer;border:1px solid}
+.mk.cut{color:var(--cut);border-color:var(--cut);background:var(--cut-bg)}
+.mk.keep{color:var(--ok);border-color:var(--ok);background:var(--ok-bg)}
+.mk b{margin-left:4px;padding:0 3px}
+.mk b:hover{background:var(--panel);border-radius:3px}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 16px;border-radius:8px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw}
+#toast.on{opacity:1}
+@media (max-width:640px){.row{grid-template-columns:44px 30px 1fr}.time{font-size:11px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>字幕剪辑</h1>
+  <select id="vid"></select>
+  <button id="playBtn" class="main" title="空格">▶ 播放选中的那句</button>
+  <button id="stopBtn" title="空格">■ 停</button>
+  <button id="cutBtn" title="X">✂ 剪 / 还原</button>
+  <select id="mode" title="播放范围"><option value="all">连续播放</option><option value="one">只播这一句</option></select>
+  <label title="直接播放原来的录音，什么都不跳过"><input type="checkbox" id="orig"> 听原声（不剪）</label>
+  <button id="delBtn" title="Delete：整句的字幕和声音都剪掉（再按一次还原）">🗑 删整句</button>
+  <button id="resetBtn" title="这一句回到程序自动做的样子：字幕改回自动的字，你在这一句里按时间剪的、放回的都取消">↺ 还原这一句</button>
+  <button id="undoBtn" title="Ctrl+Z">↶ 撤销</button>
+  <button id="redoBtn" title="Ctrl+Y 或 Ctrl+Shift+Z">↷ 重做</button>
+  <button id="saveBtn" title="Ctrl+S">保存</button>
+  <a href="/review" id="revLink" style="font-size:14px;color:var(--accent)" title="去审片页，同一支影片、从选中的这一句开始看">审片（这一句）↗</a>
+  <select id="trip" title="旅行"></select>
+  <span id="status">载入中…</span>
+</header>
+<div id="help">
+  <b>点</b>下面的小词选它（Shift+点 选一段），按 <b>X</b> 剪掉 / 还原 ·
+  <b>双击</b>小词从那里播放，<b>空格</b> 播放 / 停 ·
+  <b>Ctrl+Z</b> 撤销，<b>Ctrl+Y</b> 重做 · <b>Delete</b> 删整句（字幕和声音，再按还原） · <b>↺ 还原这一句</b>＝回到自动的样子 · 在声音图上拖一段：<b>X</b> 剪掉，<b>R</b> 放回去，<b>Esc</b> 取消选取 · <b>点字幕</b>改字，Enter 确定（〔〕里的字＝剪掉） ·
+  把小词<b>拖</b>到上一句或下一句，就把它移过去 · <span style="border:1px dashed;padding:0 4px;border-radius:4px">灰色虚线</span>的词＝影片里没用到；<span style="border:1px dashed var(--note);color:var(--note);padding:0 4px;border-radius:4px">橙色虚线</span>的词＝听得到但字幕里没有，点一下写进字幕。灰色的词勾「听原声」能听到，点一下就放回影片（点绿色的＋字可以改字） · <b>Ctrl+S</b> 保存（存进字幕表，下次出片就用）<br>
+  <b>字幕里的符号</b>：<b>/</b>（或 ／）＝在这里分成两条字幕，可以用几次分成几条 · <b>＋</b>（或 +）放在字幕<b>最后</b>＝跟下一条接成一条，放在<b>最前面</b>＝跟上一条接成一条（不同录音、中间隔一行、拖不过去的时候用） · <b>〔〕</b> 或 <b>[ ]</b>＝剪掉这段声音 · <b>（）</b>＝给剪辑的备注，不会出现在字幕
+</div>
+<div id="checkbar"><button id="checkBtn" title="让程序检查每一句：有没有字被剪掉、剪的字还听得到、声音不见了">🔍 检查这支</button><span id="checksum"></span><div id="checklist"></div></div>
+<main id="list"></main>
+<div id="toast"></div>
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+let VID = null, ROWS = [], MTIME = 0;
+let cur = 0;                 // selected row
+let sel = null;              // {row, a, b}: selected word range (indexes into ROWS[row].owned)
+let editing = -1;
+let CUTS = [], CUTS0 = "[]";  // sound cut by time (recording seconds): {voice, from, to}
+let KEEPS = [], KEEPS0 = "[]"; // sound put back by ear (an edge that cut off a 城): {voice, from, to}
+let KEEP = null;              // what the build will keep: [{voice, a, b, ranges}] per voice block, from the build's own code
+let keepStale = true, keepTimer = null, keepGen = 0;
+let CHECK = [];               // spots the automatic check wants an ear on
+let WAVE = null;              // the waveform under the selected row: {row, voice, t0, t1, canvas, peaks, sel, ph}
+
+// ---------- text model: each row's subtitle as chars with a cut flag ----------
+function parse(shown){
+  const out = []; let cut = false, note = false;     // (..) / （..） are notes to the editor: kept, never heard
+  for (const ch of shown){
+    if (!note && (ch === "(" || ch === "（")) note = true;
+    if (note){ out.push({ch, cut, note: true}); if (ch === ")" || ch === "）") note = false; continue; }
+    if (ch === "〔" || ch === "[" || ch === "［"){ cut = true; continue; }
+    if (ch === "〕" || ch === "]" || ch === "］"){ cut = false; continue; }
+    out.push({ch, cut});
+  }
+  return out;
+}
+function serial(chars){
+  let s = "", cut = false;
+  for (const c of chars){
+    if (c.cut && !cut){ s += "〔"; cut = true; }
+    if (!c.cut && cut){ s += "〕"; cut = false; }
+    s += c.ch;
+  }
+  return cut ? s + "〕" : s;
+}
+const ws = t => t.replace(/\s+/g, "");
+
+// LCS alignment: pairs [i in a, j in b]
+function lcs(a, b){
+  const n = a.length, m = b.length, W = m + 1;
+  const d = new Uint16Array((n + 1) * W);
+  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--)
+    d[i*W+j] = a[i] === b[j] ? d[(i+1)*W+j+1] + 1 : Math.max(d[(i+1)*W+j], d[i*W+j+1]);
+  const pairs = []; let i = 0, j = 0;
+  while (i < n && j < m){
+    if (a[i] === b[j]){ pairs.push([i, j]); i++; j++; }
+    else if (d[(i+1)*W+j] >= d[i*W+j+1]) i++; else j++;
+  }
+  return pairs;
+}
+
+// For one block of rows (one recording, words in order): which row each heard word now belongs to, and whether it is cut.
+// Same rule as the build: text matched to a word, or a replaced stretch, marks that word; a word the text skips stays heard.
+function alignBlock(rows){
+  const A = [];                         // plain chars of all rows: {row, k (index in row.chars), cut}
+  rows.forEach(r => r.chars.forEach((c, k) => { if (!c.note && !/\s/.test(c.ch)) A.push({row: r.i, k, cut: c.cut, ch: c.ch}); }));
+  const B = [], words = [];             // raw chars -> word
+  rows.forEach(r => r.words.forEach(w => { const wi = words.length; words.push(w); for (const ch of ws(w.t)) B.push({wi, ch}); }));
+  const pairs = lcs(A.map(x => x.ch.toLowerCase()), B.map(x => x.ch.toLowerCase()));
+  const unheard = [];
+  const own = new Array(B.length).fill(null), cut = new Array(B.length).fill(false), link = new Array(B.length).fill(null);
+  let pi = 0, pj = 0;
+  const gap = (i0, i1, j0, j1) => {     // A[i0..i1) against B[j0..j1)
+    if (j1 === j0) for (let i = i0; i < i1; i++) if (A[i].cut) unheard.push(A[i]);   // cut text with no heard words under it
+    for (let j = j0; j < j1; j++){
+      if (i1 > i0){ own[j] = A[i0].row; cut[j] = A.slice(i0, i1).some(x => x.cut); link[j] = A.slice(i0, i1); }
+      else { own[j] = i0 > 0 ? A[i0-1].row : (A[0] ? A[0].row : rows[0].i); link[j] = []; }
+    }
+  };
+  for (const [i, j] of pairs){ gap(pi, i, pj, j); own[j] = A[i].row; cut[j] = A[i].cut; link[j] = [A[i]]; pi = i + 1; pj = j + 1; }
+  gap(pi, A.length, pj, B.length);
+  rows.forEach(r => { r.owned = []; r.unheard = unheard.filter(x => x.row === r.i).map(x => x.ch).join(""); });
+  words.forEach((w, wi) => {
+    const js = B.map((b, j) => b.wi === wi ? j : -1).filter(j => j >= 0);
+    if (!js.length) return;
+    w.row = own[js[0]];
+    w.cut = js.some(j => cut[j]);
+    w.links = js.flatMap(j => link[j]);
+    w.notext = w.links.length === 0;
+    ROWS[w.row].owned.push(w);
+  });
+}
+
+// only: the blocks (recordings) that changed; an edit in one sentence no longer re-matches the whole video
+function realign(only){
+  const blocks = {};
+  ROWS.forEach(r => (blocks[r.block] = blocks[r.block] || []).push(r));
+  Object.entries(blocks).forEach(([k, b]) => {
+    if (only && !only.has(+k)) return;
+    if (b.some(r => r.words.length)) alignBlock(b); else b.forEach(r => r.owned = []);
+  });
+}
+
+const backRaw = r => r.tail.slice(0, r.back).map(w => w.t).join("").trim();
+const backText = r => r.backText != null ? r.backText : backRaw(r);
+
+// ---------- drawing ----------
+function esc(s){ return s.replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"})[c]); }
+function textHTML(r){
+  if (!r.chars.length && !r.back) return '<span class="n">（空）</span>';
+  let h = "", run = "", cut = null;
+  const flush = () => { if (run) h += cut === "n" ? `<span class="n">${esc(run)}</span>` : cut ? `<span class="c">${esc(run)}</span>` : esc(run); run = ""; };
+  for (const c of r.chars){ const k = c.note ? "n" : c.cut; if (k !== cut){ flush(); cut = k; } run += c.ch; }
+  flush();
+  if (r.back){
+    const t = backText(r), parts = parse(t);
+    h += `<span class="add" title="放回影片的词（点一下改字）：保存后下次出片会加进影片和字幕">＋` +
+      parts.map(c => c.note ? `<span class="n">${esc(c.ch)}</span>` : c.cut ? `<span class="c">${esc(c.ch)}</span>` : esc(c.ch)).join("") + `</span>`;
+  }
+  return h;
+}
+function drawRow(r){
+  const el = document.getElementById("r" + r.i);
+  if (!el) return;
+  el.classList.toggle("cur", r.i === cur);
+  el.classList.toggle("dirty", r.dirty);
+  const t = el.querySelector(".text");
+  if (editing !== r.i) t.innerHTML = textHTML(r);
+  const uh = el.querySelector(".unheard");
+  const span = r.owned.length ? [Math.min(...r.owned.map(w => w.s)), Math.max(...r.owned.map(w => w.e))] : null;
+  const byEar = span && CUTS.some(c => c.voice === r.voice && c.to > span[0] && c.from < span[1]);
+  const wholeGone = r.owned.length && r.owned.every(w => w.cut) && r.chars.every(c => c.cut || c.note || /\s/.test(c.ch)) && !r.back;
+  let warn = r.unheard && !byEar && !wholeGone ?`〔${r.unheard}〕Whisper 没听到，自动剪可能不准（会连旁边的字一起剪）：请在下面的声音图上把它拖出来按 X 剪掉。字幕里的〔〕留着没关系` : "";
+  const left = r.chars.filter(c => !c.cut && !c.note && !/\s/.test(c.ch)).map(c => c.ch).join("");
+  if (r.owned.length && r.owned.every(w => w.cut) && left)       // its voice is all cut, but some text is not
+    warn = (warn ? warn + "　" : "") + `声音全剪了，但字幕里「${left}」没剪：影片里还会显示（接在上一句字幕后面）。要整句删掉，按 🗑 删整句（Delete）`;
+  if (uh) uh.textContent = warn;
+  const wb = el.querySelector(".wavebox");
+  if (r.i === cur && r.words.length) renderWave(r, wb); else if (wb.firstChild){ wb.innerHTML = ""; if (WAVE && WAVE.row === r.i) WAVE = null; }
+  const box = el.querySelector(".words");
+  box.innerHTML = "";
+  r.owned.forEach((w, k) => {
+    const s = document.createElement("span");
+    s.className = "w" + (w.cut ? " cut" : "") + (w.notext ? " notext" : "") +
+      (sel && sel.row === r.i && k >= sel.a && k <= sel.b ? " sel" : "");
+    s.textContent = w.t.trim() || "·";
+    s.title = `${w.s.toFixed(2)} 秒` + (w.notext ? " · 影片里听得到，但字幕里没有这个词。点一下写进字幕" : "");
+    s.dataset.row = r.i; s.dataset.k = k;
+    w.el = s;
+    box.appendChild(s);
+  });
+  (r.tail || []).forEach((w, k) => {
+    const s = document.createElement("span");
+    const back = k < r.back;
+    s.className = "w " + (back ? "back" : "unused"); s.textContent = (back ? "＋" : "") + (w.t.trim() || "·");
+    s.title = back ? `${w.s.toFixed(2)} 秒 · 已放回影片（再点一下取消）` : `${w.s.toFixed(2)} 秒 · 影片里没用到。点一下放回影片`;
+    s.dataset.row = r.i; s.dataset.tail = k;
+    w.el = s; box.appendChild(s);
+  });
+}
+function drawAll(){
+  const list = $("#list"); list.innerHTML = "";
+  let last = null;
+  ROWS.forEach(r => {
+    if (r.block !== last){
+      last = r.block;
+      const b = document.createElement("div"); b.className = "block";
+      b.textContent = r.voice ? `录音 ${r.voice}` : "文字旁白（还没录）";
+      list.appendChild(b);
+    }
+    const el = document.createElement("div");
+    el.className = "row"; el.id = "r" + r.i; el.dataset.row = r.i;
+    el.innerHTML = `<div class="time">${esc(r.when)}</div>
+      <div>${r.words.length ? '<button class="play" title="从这句播放">▶</button>' : ""}</div>
+      <div><div class="text"></div><div class="words"></div><div class="wavebox"></div>
+      ${r.note ? `<div class="note">${esc(r.note)}</div>` : ""}<div class="note unheard"></div>
+      ${r.words.length ? "" : '<div class="noaudio">这句没有录音（只改字）</div>'}</div>`;
+    list.appendChild(el);
+    drawRow(r);
+  });
+}
+const HIST = [], FUT = [];     // undo and redo
+const snap = () => ({cuts: CUTS.map(c => ({...c})), keeps: KEEPS.map(c => ({...c})), rows: ROWS.map(r => ({chars: r.chars.map(c => ({...c})), back: r.back, backText: r.backText}))});
+function histBtns(){ $("#undoBtn").disabled = !HIST.length; $("#redoBtn").disabled = !FUT.length; }
+function remember(){ HIST.push(snap()); if (HIST.length > 200) HIST.shift(); FUT.length = 0; histBtns(); }
+function backTo(h){
+  CUTS = h.cuts; KEEPS = h.keeps || []; if (WAVE) WAVE.sel = null; refreshKeep();
+  ROWS.forEach((r, i) => { r.chars = h.rows[i].chars; r.back = h.rows[i].back; r.backText = h.rows[i].backText; }); sel = null;
+  realign(); ROWS.forEach(r => { r.dirty = serial(r.chars) !== r.orig || r.back !== r.back0 || r.backText !== r.backText0; }); ROWS.forEach(drawRow); drawMarks(); status(); histBtns();
+}
+function undo(){ const h = HIST.pop(); if (!h){ toast("没有可以撤销的了"); return; } FUT.push(snap()); backTo(h); }
+function redo(){ const h = FUT.pop(); if (!h){ toast("没有可以重做的了"); return; } HIST.push(snap()); backTo(h); }
+function touch(rowsChanged){
+  realign(new Set(rowsChanged.map(i => ROWS[i].block)));
+  refreshKeep();
+  ROWS.forEach(r => { r.dirty = serial(r.chars) !== r.orig || r.back !== r.back0 || r.backText !== r.backText0; });
+  // a moved word changes its neighbours' lists too
+  const set = new Set(); rowsChanged.forEach(i => { const b = ROWS[i].block; ROWS.forEach(r => { if (r.block === b) set.add(r.i); }); });
+  set.forEach(i => drawRow(ROWS[i]));
+  status();
+}
+const cutsDirty = () => JSON.stringify(CUTS) !== CUTS0 || JSON.stringify(KEEPS) !== KEEPS0;
+function status(){
+  const n = ROWS.filter(r => r.dirty).length + (cutsDirty() ? 1 : 0);
+  const s = $("#status");
+  s.textContent = n ? `${n} 句还没保存` : "全部已保存";
+  s.className = n ? "dirty" : "";
+  $("#saveBtn").disabled = !n;
+}
+function toast(msg){ const t = $("#toast"); t.textContent = msg; t.classList.add("on"); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove("on"), 2600); }
+
+// ---------- actions ----------
+function selectRow(i){ const old = cur; cur = i; if (ROWS[old]) drawRow(ROWS[old]); drawRow(ROWS[i]); }
+function toggleCut(){
+  if (!sel){ toast("先点一个小词，再按 X"); return; }
+  const r = ROWS[sel.row], ws_ = r.owned.slice(sel.a, sel.b + 1);
+  const make = !ws_.every(w => w.cut);
+  if (!ws_.some(w => w.links.length)){ toast("这些词在字幕里没有对应的字：先在字幕里把它们打出来，再剪"); return; }
+  remember();
+  let n = 0;
+  ws_.forEach(w => w.links.forEach(x => { ROWS[x.row].chars[x.k].cut = make; n++; }));
+  if (!n){ toast("这些词在字幕里没有对应的字：先在字幕里把它们打出来，再剪"); return; }
+  touch([sel.row]);
+}
+// a heard word the subtitle has no text for (orange dashed): write it in, with the words without text just before it
+function writeIn(i, k){
+  const r = ROWS[i];
+  let k0 = k; while (k0 > 0 && r.owned[k0 - 1].notext) k0--;
+  const prev = r.owned.slice(0, k0).reverse().find(w => w.links.some(x => x.row === i));
+  let at;
+  if (prev) at = Math.max(...prev.links.filter(x => x.row === i).map(x => x.k)) + 1;
+  else { const f = r.chars.findIndex(c => !c.note && !/\s/.test(c.ch)); at = f < 0 ? 0 : f; }
+  const txt = r.owned.slice(k0, k + 1).map(w => w.t.trim()).join("");
+  remember();
+  r.chars.splice(at, 0, ...[...txt].map(ch => ({ch, cut: false})));
+  sel = null; touch([i]);
+  toast(`写进字幕了：${txt}（字可以点字幕再改）`);
+}
+// 删整句: the whole subtitle and its voice go (words with no text of their own too); again = bring the text back
+function toggleDeleteRow(i){
+  const r = ROWS[i]; if (!r) return;
+  const plain = r.chars.filter(c => !c.note && !/\s/.test(c.ch));
+  const gone = (plain.length || r.owned.length) && plain.every(c => c.cut) && r.owned.every(w => w.cut) && !r.back;
+  remember();
+  if (gone){
+    r.chars.forEach(c => { if (!c.note) c.cut = false; });
+    toast("整句还原了（字幕和声音）");
+  } else {
+    if (r.owned.some(w => w.notext)){        // heard words the text never wrote: write them in, cut, so the build drops them too
+      const first = r.chars.findIndex(c => !c.note && !/\s/.test(c.ch));
+      const head = first < 0 ? [] : r.chars.slice(0, first).filter(c => c.note), tail = r.chars.filter(c => c.note && !head.includes(c));
+      r.chars = head.concat([...r.owned.map(w => w.t.trim()).join("")].map(ch => ({ch, cut: true})), tail);
+    } else r.chars.forEach(c => { if (!c.note) c.cut = true; });
+    r.back = 0; r.backText = null;           // no words put back after it
+    if (r.owned.length){                      // nothing put back by ear inside it
+      const a = Math.min(...r.owned.map(w => w.s)), b = Math.max(...r.owned.map(w => w.e));
+      KEEPS = subIv(KEEPS, r.voice, a, b);
+    }
+    toast("整句删掉了（字幕和声音）。再按一次 Delete 还原，或 Ctrl+Z");
+  }
+  sel = null; touch([i]); drawMarks();
+}
+// ↺ 还原这一句 (from the studio page's "还原这个镜头"): the sentence back to what the program made by
+// itself: the automatic text, nothing put back after it, none of the director's cuts or put-backs by ear inside it
+function resetRow(i){
+  const r = ROWS[i]; if (!r) return;
+  if (!r.auto){ toast("这一句没有自动的版本可以还原"); return; }
+  const span = r.words.length ? [Math.min(...r.words.map(w => w.s)) - 0.05, Math.max(...r.words.map(w => w.e)) + 0.05] : null;
+  const mine = span && CUTS.concat(KEEPS).some(c => c.voice === r.voice && c.to > span[0] && c.from < span[1]);
+  if (serial(r.chars) === r.auto0 && !r.back && !mine){ toast("这一句本来就是自动的样子"); return; }
+  remember();
+  r.chars = parse(r.auto); r.back = 0; r.backText = null;
+  if (span){ CUTS = subIv(CUTS, r.voice, span[0], span[1]); KEEPS = subIv(KEEPS, r.voice, span[0], span[1]); }
+  sel = null; if (WAVE) WAVE.sel = null;
+  touch([i]); drawMarks();
+  toast("这一句还原成自动的样子了（Ctrl+Z 可以反悔）");
+}
+function moveWord(from, k, to){
+  const src = ROWS[from], dst = ROWS[to];
+  if (!dst || dst.block !== src.block || Math.abs(to - from) !== 1){ toast("只能移到同一段录音的上一句或下一句"); return; }
+  const w = src.owned[k];
+  if (!w.links.length){ toast("这个词在字幕里没有字，移不了"); return; }
+  remember();
+  const ks = w.links.filter(x => x.row === from).map(x => x.k);
+  if (to > from){                  // this word and everything after it go to the start of the next row
+    const at = Math.min(...ks);
+    dst.chars = src.chars.slice(at).concat(dst.chars);
+    src.chars = src.chars.slice(0, at);
+  } else {                         // this word and everything before it go to the end of the row above
+    const at = Math.max(...ks) + 1;
+    dst.chars = dst.chars.concat(src.chars.slice(0, at));
+    src.chars = src.chars.slice(at);
+  }
+  sel = null;
+  touch([from, to]);
+}
+function startEdit(i){
+  if (editing >= 0) return;
+  editing = i;
+  const r = ROWS[i], t = document.querySelector(`#r${i} .text`);
+  const inp = document.createElement("input");
+  inp.className = "edit"; inp.value = serial(r.chars);
+  t.innerHTML = ""; t.appendChild(inp); inp.focus();
+  const done = keep => {
+    if (editing !== i) return;
+    editing = -1;
+    if (keep && inp.value !== serial(r.chars)){ remember(); r.chars = parse(inp.value); }
+    touch([i]);
+  };
+  inp.addEventListener("keydown", e => {
+    if (e.key === "Enter"){ e.preventDefault(); done(true); }
+    if (e.key === "Escape"){ e.preventDefault(); done(false); }
+    e.stopPropagation();
+  });
+  inp.addEventListener("blur", () => done(true));
+}
+
+function editBack(i){
+  if (editing >= 0) return;
+  editing = i;
+  const r = ROWS[i], add = document.querySelector(`#r${i} .add`);
+  const inp = document.createElement("input");
+  inp.className = "edit"; inp.style.width = "auto"; inp.size = Math.max(8, backText(r).length + 4);
+  inp.value = backText(r); inp.title = "放回的词要显示成什么字（〔〕＝还是剪掉）";
+  add.replaceWith(inp); inp.focus();
+  const done = keep => {
+    if (editing !== i) return;
+    editing = -1;
+    const v = inp.value.trim();
+    if (keep && v !== backText(r)){ remember(); r.backText = v === backRaw(r) ? null : v; }
+    touch([i]);
+  };
+  inp.addEventListener("keydown", e => {
+    if (e.key === "Enter"){ e.preventDefault(); done(true); }
+    if (e.key === "Escape"){ e.preventDefault(); done(false); }
+    e.stopPropagation();
+  });
+  inp.addEventListener("blur", () => done(true));
+}
+
+async function save(){
+  if (!ROWS.some(r => r.dirty) && !cutsDirty()) return;
+  const edits = ROWS.filter(r => r.dirty && serial(r.chars) !== r.orig).map(r => ({cid: r.cid, shown: serial(r.chars)}));
+  const restore = restoreList();
+  $("#status").textContent = "保存中…";
+  const res = await fetch(`/api/save/${encodeURIComponent(VID)}`, {method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({edits, mtime: MTIME, restore, cuts: CUTS, keeps: KEEPS})}).then(r => r.json()).catch(e => ({ok: false, error: String(e)}));
+  if (!res.ok){
+    status();
+    alert(/fetch/i.test(res.error || "") ? "连不上剪辑程序（它被关掉了）。你的修改还在这一页：先不要重新载入页面，请 Claude 重新打开程序，再按一次保存。"
+                                          : (res.error || "保存失败"));
+    return;
+  }
+  MTIME = res.mtime; CUTS0 = JSON.stringify(CUTS); KEEPS0 = JSON.stringify(KEEPS);
+  ROWS.forEach(r => { if (r.dirty){ r.orig = serial(r.chars); r.back0 = r.back; r.backText0 = r.backText; r.dirty = false; } });
+  ROWS.forEach(drawRow);
+  status();
+  toast(`已保存（${res.changed} 处）。下次出片才会用上`);
+}
+
+// ---------- sound: decode each recording once, then play only the kept words, gap-free ----------
+let ctx = null; const BUF = {}, LOADING = {};
+let playing = null;          // {sources, plan, t0, raf}
+function audioCtx(){ if (!ctx) ctx = new AudioContext({sampleRate: 24000}); return ctx; }
+function loadVoice(v){
+  if (BUF[v]) return Promise.resolve(BUF[v]);
+  if (!LOADING[v]) LOADING[v] = fetch(`/audio/${encodeURIComponent(v)}`).then(r => { if (!r.ok) throw new Error("没有这段录音的声音"); return r.arrayBuffer(); })
+    .then(a => audioCtx().decodeAudioData(a)).then(b => (BUF[v] = b));
+  return LOADING[v];
+}
+// where one sentence must stop: just before the next word of the same recording that isn't this row's
+function rowStop(r, last){
+  const mine = new Set(r.owned.concat(r.tail));
+  const nxt = ROWS.filter(x => x.voice === r.voice).flatMap(x => x.owned.concat(x.tail))
+    .filter(w => !mine.has(w) && w.s >= last - 0.01).reduce((m, w) => Math.min(m, w.s), Infinity);
+  return Math.min(last + 0.15, nxt - 0.03);
+}
+const restoreList = () => ROWS.filter(r => r.back).map(r => ({voice: r.voice, from: r.tail[0].ws, to: r.tail[r.back - 1].we,
+  words: backRaw(r), text: r.backText, after: r.cid}));
+// the build works out what each voice block keeps (vlog_build.voice_plan) from the page's current, unsaved state
+function refreshKeep(){ keepStale = true; clearTimeout(keepTimer); keepTimer = setTimeout(fetchKeep, 300); }
+async function fetchKeep(){
+  clearTimeout(keepTimer);
+  const gen = ++keepGen;
+  const body = {rows: ROWS.map(r => ({cid: r.cid, raw: r.raw, shown: serial(r.chars), auto: r.auto})), restore: restoreList(), cuts: CUTS, keeps: KEEPS};
+  const d = await fetch(`/api/keep/${encodeURIComponent(VID)}`, {method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(body)}).then(r => r.json()).catch(e => ({error: String(e)}));
+  if (gen !== keepGen) return;
+  if (d.error){ toast("算不出剪辑：" + d.error); return; }
+  KEEP = d.blocks; keepStale = false;
+  if (WAVE) drawWave();
+}
+async function keepReady(){
+  if (!keepStale && KEEP) return true;
+  $("#status").textContent = "计算剪辑…";
+  await fetchKeep();
+  status();
+  return !!KEEP;
+}
+const rowWords = r => r.owned.concat(r.tail.slice(0, r.back));
+function blockOf(r){                     // the edit list's voice block this row's sound is in
+  if (!KEEP || !r.voice) return -1;
+  const ws_ = rowWords(r); if (!ws_.length) return -1;
+  const t = ws_[Math.floor(ws_.length / 2)].s;
+  let best = -1, bd = 1e9;
+  KEEP.forEach((B, k) => { if (B.voice !== r.voice) return; const d = t < B.a ? B.a - t : t > B.b ? t - B.b : 0; if (d < bd){ bd = d; best = k; } });
+  return bd < 1.5 ? best : -1;
+}
+function rowSpan(i){                     // this row's stretch of its block: from the row before's last word to the next row's first
+  const r = ROWS[i], k = blockOf(r), B = KEEP[k];
+  const same = x => x.voice === r.voice && rowWords(x).length && blockOf(x) === k;
+  let prev = null, next = null;
+  for (let j = i - 1; j >= 0; j--) if (same(ROWS[j])){ prev = ROWS[j]; break; }
+  for (let j = i + 1; j < ROWS.length; j++) if (same(ROWS[j])){ next = ROWS[j]; break; }
+  const mine = rowWords(r);
+  const s0 = prev ? Math.max(...rowWords(prev).map(w => w.e)) : B.a;
+  const e0 = next ? Math.min(...rowWords(next).map(w => w.s)) : B.b;
+  return [Math.min(s0, mine[0].s), Math.max(e0, Math.max(...mine.map(w => w.s)) + 0.05)];
+}
+// pieces of sound from row i0 (and on, unless "this sentence"), starting at time startT if given
+function planKeep(i0, startT){
+  const one = $("#mode").value === "one", r0 = ROWS[i0], k0 = blockOf(r0);
+  if (k0 < 0) return [];
+  const [rs, re] = rowSpan(i0);
+  const st = startT != null ? startT : rs, en = one ? re : Infinity, out = [];
+  for (let k = k0; k < KEEP.length && (!one || k === k0); k++){
+    const B = KEEP[k], ws_ = ROWS.filter(r => r.voice === B.voice).flatMap(rowWords);
+    for (const [a, b] of B.ranges){
+      const A = k === k0 ? Math.max(a, st) : a, Z = k === k0 ? Math.min(b, en) : b;
+      if (Z - A < 0.02) continue;
+      const prev = out[out.length - 1];
+      out.push({voice: B.voice, a: A, b: Z, exA: true, exB: true, blk: k, gap: prev && prev.blk === k ? 0 : 0.3,
+                words: ws_.filter(w => w.e > A && w.s < Z)});
+    }
+  }
+  return out;
+}
+// 听原声: the recording itself straight on from that word, nothing skipped
+function planOrig(i0, first){
+  const one = $("#mode").value === "one", r0 = ROWS[i0], voice = r0.voice;
+  const words = ROWS.filter(r => r.voice === voice).flatMap(r => r.owned.concat(r.tail || [])).filter(w => w.s >= first.s - 0.01).sort((x, y) => x.s - y.s);
+  const end = one ? rowStop(r0, Math.max(...r0.owned.concat(r0.tail || []).map(w => w.e), first.e)) : Infinity;
+  return [{voice, a: first.s, b: end, words: words.filter(w => w.s < end), straight: true}];
+}
+// where one sentence of 原声 stops: just before the next word of the same recording that isn't this row's
+function rowStop(r, last){
+  const mine = new Set(r.owned.concat(r.tail));
+  const nxt = ROWS.filter(x => x.voice === r.voice).flatMap(x => x.owned.concat(x.tail))
+    .filter(w => !mine.has(w) && w.s >= last - 0.01).reduce((m, w) => Math.min(m, w.s), Infinity);
+  return Math.min(last + 0.15, nxt - 0.03);
+}
+// a stretch of one recording: as the video will have it (applyCuts), or everything (checking a selection)
+async function playRange(voice, a, b, applyCuts){
+  const words = ROWS.filter(r => r.voice === voice).flatMap(rowWords).filter(w => w.e > a && w.s < b);
+  if (!applyCuts) return runPlan([{voice, a, b, words, exA: true, exB: true}]);
+  if (!await keepReady()) return;
+  const out = [];
+  KEEP.forEach((B, k) => { if (B.voice !== voice) return; for (const [p, q] of B.ranges){ const A = Math.max(p, a), Z = Math.min(q, b);
+    if (Z - A > 0.02) out.push({voice, a: A, b: Z, exA: true, exB: true, gap: 0, words: words.filter(w => w.e > A && w.s < Z)}); } });
+  return runPlan(out);
+}
+function stop(){
+  if (!playing) return;
+  playing.sources.forEach(s => { try { s.stop(); } catch (e) {} });
+  cancelAnimationFrame(playing.raf);
+  document.querySelectorAll(".w.now").forEach(e => e.classList.remove("now"));
+  playing = null;
+  if (WAVE){ WAVE.ph = null; drawWave(); }
+  status();
+}
+// is there voice in this gap between two heard words? (level against the words around it; unknown = yes, play it)
+function hasSpeech(voice, a, b){
+  const buf = BUF[voice]; if (!buf) return true;
+  const d = buf.getChannelData(0), sr = buf.sampleRate, win = Math.round(0.03 * sr);
+  const rms = (x0, x1) => { let s2 = 0, n = 0; for (let i = Math.max(0, x0); i < Math.min(d.length, x1); i++){ s2 += d[i] * d[i]; n++; } return n ? Math.sqrt(s2 / n) : 0; };
+  const ref = Math.max(rms(Math.round((a - 1.0) * sr), Math.round(a * sr)), rms(Math.round(b * sr), Math.round((b + 1.0) * sr)), 1e-4);
+  for (let i = Math.round((a + 0.1) * sr); i + win < Math.round((b - 0.1) * sr); i += win)
+    if (rms(i, i + win) > ref * 0.3) return true;
+  return false;
+}
+function playFrom(i0, w){ return play(i0, null, w); }
+async function play(i0, k0, startWord){
+  stop();
+  const r0 = ROWS[i0];
+  if (!r0 || !r0.words.length){ toast("这句没有录音"); return; }
+  if ($("#orig").checked) return runPlan(planOrig(i0, startWord || r0.owned[k0 != null ? k0 : 0] || r0.words[0]));
+  if (!await keepReady()) return;
+  const sw = startWord || (k0 != null ? r0.owned[k0] : null);
+  return runPlan(planKeep(i0, sw ? sw.s - 0.03 : null).slice(0, 2000));
+}
+async function runPlan(plan){
+  stop();
+  if (!plan.length){ toast("后面没有要播的声音"); return; }
+  $("#status").textContent = "载入声音…";
+  [...new Set(plan.map(p => p.voice))].forEach(v => loadVoice(v).catch(() => {}));   // fetch the next recordings now, not when reached
+  try { await loadVoice(plan[0].voice); } catch (e){ status(); alert(e.message); return; }
+  status();
+  const c = audioCtx(); await c.resume();
+  const me = playing = {sources: [], plan, raf: 0};
+  let t = c.currentTime + 0.08;
+  const PADA = 0.08, PADB = 0.15;
+  let first = true;
+  for (const p of plan){
+    if (playing !== me) return;
+    if (!first) t += p.gap != null ? p.gap : 0.04;
+    first = false;
+    if (!BUF[p.voice]){ try { await loadVoice(p.voice); } catch (e){ break; } t = Math.max(t, c.currentTime + 0.05); }
+    const buf = BUF[p.voice];
+    let a = Math.max(0, p.a - (p.exA ? 0 : PADA)), b = Math.min(buf.duration, p.b + (p.exB ? 0 : PADB));
+    if (p.capA != null) a = Math.max(a, Math.min(p.a, p.capA));       // not into the cut word before
+    if (p.capB != null) b = Math.min(b, Math.max(p.b, p.capB));       // not into the cut word after
+    if (!p.straight) for (const c of CUTS.filter(c => c.voice === p.voice)){    // padding never reaches into a time cut
+      if (a > c.from && a < c.to) a = c.to;
+      if (b > c.from && b < c.to) b = c.from;
+    }
+    if (b - a < 0.02) continue;
+    const src = c.createBufferSource(); src.buffer = buf;
+    const g = c.createGain(); src.connect(g); g.connect(c.destination);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(1, t + 0.015);
+    g.gain.setValueAtTime(1, t + (b - a) - 0.015); g.gain.linearRampToValueAtTime(0, t + (b - a));
+    src.start(t, a, b - a);
+    p.t = t; p.a0 = a; t += (b - a);
+    me.sources.push(src);
+  }
+  me.end = t;
+  let lastEl = null;
+  const tick = () => {
+    if (playing !== me) return;
+    const now = c.currentTime;
+    if (now > me.end){ stop(); return; }
+    const p = me.plan.find(p => p.t != null && now >= p.t && now < p.t + (p.b - p.a0) + 0.2);
+    if (p){
+      const pos = p.a0 + (now - p.t);
+      if (WAVE && WAVE.voice === p.voice){ WAVE.ph = pos; drawWave(); }
+      if (p.straight) $("#status").textContent = `原声 ${p.voice} · ${Math.floor(pos / 60)}:${(pos % 60).toFixed(1).padStart(4, "0")}`;
+      const w = p.words.find(w => pos >= w.s - 0.02 && pos < Math.max(w.e, w.s + 0.12)) || null;
+      if (w && w.el && +w.el.dataset.row !== cur){      // the next subtitle: select it (redraws its words) and bring it into view
+        const row = +w.el.dataset.row;
+        selectRow(row);
+        const rel = document.getElementById("r" + row);
+        if (rel) rel.scrollIntoView({block: "center", behavior: "smooth"});
+        if (WAVE && WAVE.voice === p.voice){ WAVE.ph = pos; drawWave(); }
+      }
+      const el = w && w.el && w.el.isConnected ? w.el : null;
+      if (el !== lastEl || (el && !el.classList.contains("now"))){
+        if (lastEl) lastEl.classList.remove("now");
+        if (el) el.classList.add("now");
+        lastEl = el;
+      }
+    }
+    me.raf = requestAnimationFrame(tick);
+  };
+  me.raf = requestAnimationFrame(tick);
+}
+
+// ---------- waveform: cut what Whisper never heard (a 嗯), by ear ----------
+// the page's colours, looked up once (asking the browser for each one on every redraw of the sound picture was slow)
+const CSSV = {};
+function cssv(n){ return CSSV[n] || (CSSV[n] = getComputedStyle(document.documentElement).getPropertyValue(n).trim()); }
+try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { for (const k in CSSV) delete CSSV[k]; if (WAVE) drawWave(); }); } catch (e) {}
+function renderWave(r, box){
+  const all = r.owned.concat(r.tail);
+  // 1.2 s of the recording either side of the sentence (was 0.4): room to see and put back a clipped word end
+  const t0 = Math.max(0, Math.min(...all.map(w => w.s)) - 1.2), t1 = Math.max(...all.map(w => w.e)) + 1.2;
+  if (WAVE && WAVE.row === r.i && WAVE.canvas && box.contains(WAVE.canvas)){ drawWave(); drawMarks(); return; }
+  const keepSel = WAVE && WAVE.row === r.i ? WAVE.sel : null;
+  box.innerHTML = '<canvas></canvas><div class="wavehint">暗的部分＝影片里没有 · 拖一段 → 空格听 → X：亮的剪掉、暗的放回（字幕里没有的嗯、啊，被剪掉的字尾都能处理）· 点暗处选那一段 · 点亮处从那里播放 · 点你剪的（红 ✂）或放回的（绿线）选它，Delete 取消它</div><div class="marks"></div>';
+  const cv = box.querySelector("canvas");
+  WAVE = {row: r.i, voice: r.voice, t0, t1, canvas: cv, peaks: null, sel: keepSel, ph: null};
+  const me = WAVE;
+  if (!BUF[r.voice]) loadVoice(r.voice).then(() => { if (WAVE === me){ me.peaks = null; drawWave(); } }).catch(() => {});
+  const xt = e => { const b = cv.getBoundingClientRect(); return me.t0 + (e.clientX - b.left) / b.width * (me.t1 - me.t0); };
+  cv.addEventListener("pointerdown", e => { e.stopPropagation(); cv.setPointerCapture(e.pointerId); me.drag = xt(e); me.sel = null; drawWave(); });
+  cv.addEventListener("pointermove", e => { if (me.drag == null) return; const t = xt(e); me.sel = [Math.min(me.drag, t), Math.max(me.drag, t)]; drawWave(); });
+  cv.addEventListener("pointerup", e => {
+    if (me.drag == null) return;
+    const t = xt(e), d = me.drag; me.drag = null;
+    if (Math.abs(t - d) < 0.03){                    // a click: select your own cut / put-back, a cut, or play from here
+      const mine = myEditAt(me.voice, t);
+      if (mine){ me.sel = [mine.from, mine.to]; drawWave();
+        toast(mine.kind === "cut" ? "选了你剪掉的这一段：Delete 取消这个剪辑（回到自动），空格听原声" : "选了你放回的这一段：Delete 取消放回（回到自动），空格听"); return; }
+      const gap = notKeptAt(me.voice, t, me.t0, me.t1);
+      if (gap){ me.sel = gap; drawWave(); toast("选了影片里没有的这一段：按 X 放回，空格听"); }
+      else {                                      // play from here, as the play mode says (this sentence / on)
+        me.sel = null; drawWave();
+        if ($("#orig").checked){ const r = ROWS[me.row], w = r.owned.concat(r.tail).find(w => w.e > t); if (w) runPlan(planOrig(me.row, w)); return; }
+        keepReady().then(ok => { if (ok) runPlan(planKeep(me.row, t).slice(0, 2000)); });
+      }
+      return;
+    }
+    me.sel = [Math.min(d, t), Math.max(d, t)]; drawWave();
+  });
+  requestAnimationFrame(drawWave);
+  drawMarks();
+}
+function drawWave(){
+  const W_ = WAVE; if (!W_ || !W_.canvas.isConnected) return;
+  const cv = W_.canvas, dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight;
+  if (!w) return;
+  if (cv.width !== Math.round(w * dpr)){ cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); W_.peaks = null; }
+  const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
+  const X = t => (t - W_.t0) / (W_.t1 - W_.t0) * w;
+  g.fillStyle = cssv("--bg"); g.fillRect(0, 0, w, h);
+  const buf = BUF[W_.voice];
+  if (!buf){ g.fillStyle = cssv("--mute"); g.font = "12px sans-serif"; g.fillText("载入声音…", 8, h / 2); return; }
+  if (!W_.peaks){
+    const d = buf.getChannelData(0), sr = buf.sampleRate, pk = new Float32Array(Math.ceil(w));
+    for (let x = 0; x < w; x++){
+      const i0 = Math.floor((W_.t0 + x / w * (W_.t1 - W_.t0)) * sr), i1 = Math.floor((W_.t0 + (x + 1) / w * (W_.t1 - W_.t0)) * sr);
+      let m = 0; for (let i = Math.max(0, i0); i < Math.min(d.length, i1); i++){ const v = Math.abs(d[i]); if (v > m) m = v; }
+      pk[x] = m;
+    }
+    let top = 0.05; for (const v of pk) if (v > top) top = v;
+    W_.peaks = pk.map(v => v / top);
+  }
+  const r = ROWS[W_.row], TOP = 26, mid = TOP + (h - TOP) / 2;
+  r.owned.forEach(wd => { if (wd.cut){ g.fillStyle = cssv("--cut-bg"); g.fillRect(X(wd.s), TOP, Math.max(2, X(wd.e) - X(wd.s)), h - TOP); } });
+  r.tail.slice(0, r.back).forEach(wd => { g.fillStyle = cssv("--ok-bg"); g.fillRect(X(wd.s), TOP, Math.max(2, X(wd.e) - X(wd.s)), h - TOP); });
+  g.fillStyle = cssv("--mute");
+  W_.peaks.forEach((v, x) => { const a = v * (h - TOP - 4) / 2; g.fillRect(x, mid - a, 1, Math.max(1, 2 * a)); });
+  if (KEEP){                                    // grey: not in the video (what the build leaves out)
+    const ks = keptOf(W_.voice).filter(([p, q]) => q > W_.t0 && p < W_.t1).sort((x, y) => x[0] - y[0]);
+    let x0 = W_.t0;
+    g.fillStyle = cssv("--panel"); g.globalAlpha = keepStale ? 0.45 : 0.72;
+    for (const [p, q] of ks.concat([[W_.t1, W_.t1]])){ if (p > x0) g.fillRect(X(x0), TOP, X(p) - X(x0), h - TOP); x0 = Math.max(x0, q); }
+    g.globalAlpha = 1;
+  }
+  CUTS.filter(c => c.voice === W_.voice).forEach(c => {
+    g.fillStyle = cssv("--cut"); g.globalAlpha = 0.35; g.fillRect(X(c.from), TOP, X(c.to) - X(c.from), h - TOP); g.globalAlpha = 1;
+    g.font = "bold 12px sans-serif"; g.textBaseline = "top"; g.fillText("✂", X(c.from) + 2, TOP + 2);
+  });
+  KEEPS.filter(c => c.voice === W_.voice).forEach(c => {
+    g.fillStyle = cssv("--ok"); g.fillRect(X(c.from), h - 4, X(c.to) - X(c.from), 4);
+  });
+  CHECK.filter(c => c.voice === W_.voice && c.t >= W_.t0 && c.t <= W_.t1).forEach(c => {
+    g.fillStyle = cssv("--note"); g.beginPath(); g.moveTo(X(c.t) - 5, TOP); g.lineTo(X(c.t) + 5, TOP); g.lineTo(X(c.t), TOP + 7); g.fill();
+  });
+  if (W_.sel){ g.fillStyle = cssv("--now"); g.globalAlpha = 0.25; g.fillRect(X(W_.sel[0]), 0, X(W_.sel[1]) - X(W_.sel[0]), h); g.globalAlpha = 1; }
+  g.font = "11px 'Microsoft YaHei', sans-serif"; g.textBaseline = "top";
+  const ends = [-1e9, -1e9];                    // labels on two lines so close words don't overlap
+  r.owned.concat(r.tail).forEach((wd, k) => {
+    const unused = k >= r.owned.length && k - r.owned.length >= r.back;
+    const x = X(wd.s), t = wd.t.trim(), tw = g.measureText(t).width;
+    const line = ends[0] <= x ? 0 : ends[1] <= x ? 1 : (ends[0] < ends[1] ? 0 : 1);
+    ends[line] = x + tw + 6;
+    g.fillStyle = wd.cut ? cssv("--cut") : unused ? cssv("--noword") : cssv("--ink");
+    g.globalAlpha = 0.5; g.fillRect(x, line * 12, 1, TOP - line * 12); g.globalAlpha = 1;
+    g.fillText(t, x + 2, line * 12);
+  });
+  if (W_.ph != null && W_.ph >= W_.t0 && W_.ph <= W_.t1){ g.fillStyle = cssv("--now"); g.fillRect(X(W_.ph), 0, 2, h); }
+}
+// kept ranges of one recording, from the build's answer
+const keptOf = v => (KEEP || []).filter(B => B.voice === v).flatMap(B => B.ranges);
+function keptShare(v, a, b){ return keptOf(v).reduce((n, [p, q]) => n + Math.max(0, Math.min(b, q) - Math.max(a, p)), 0) / (b - a); }
+// the not-kept stretch around time t (within the view), or null when t is kept
+function notKeptAt(v, t, lo, hi){
+  const ks = keptOf(v).filter(([p, q]) => q > lo && p < hi).sort((x, y) => x[0] - y[0]);
+  if (!KEEP || ks.some(([p, q]) => t >= p && t <= q)) return null;
+  const a = Math.max(lo, ...ks.filter(([p, q]) => q <= t).map(([p, q]) => q)), b = Math.min(hi, ...ks.filter(([p, q]) => p >= t).map(([p, q]) => p));
+  return b - a > 0.03 ? [a, b] : null;
+}
+function addIv(list, v, a, b){           // add [a, b] to a list of {voice, from, to}, merging overlaps
+  const hit = list.filter(c => c.voice === v && c.to >= a - 0.005 && c.from <= b + 0.005);
+  const lo = Math.min(a, ...hit.map(c => c.from)), hi = Math.max(b, ...hit.map(c => c.to));
+  return list.filter(c => !hit.includes(c)).concat([{voice: v, from: +lo.toFixed(3), to: +hi.toFixed(3)}]).sort((x, y) => x.from - y.from);
+}
+function subIv(list, v, a, b){           // take [a, b] out of a list of {voice, from, to}
+  const out = [];
+  for (const c of list){
+    if (c.voice !== v || c.to <= a || c.from >= b){ out.push(c); continue; }
+    if (c.from < a - 0.01) out.push({...c, to: +a.toFixed(3)});
+    if (c.to > b + 0.01) out.push({...c, from: +b.toFixed(3)});
+  }
+  return out;
+}
+// X on the waveform: sound that is in the video gets cut; grey sound (not in the video) is put back
+async function toggleTimeCut(){
+  const [a, b] = WAVE.sel, v = WAVE.voice;
+  if (b - a < 0.03){ toast("拖长一点再按 X"); return; }
+  if (!await keepReady()) return;
+  remember();
+  const share = keptShare(v, a, b), myCut = CUTS.some(c => c.voice === v && c.to > a + 0.005 && c.from < b - 0.005);
+  if (share < 0.5 && myCut){                    // dark because you cut it: take your cut away, back to automatic
+    CUTS = subIv(CUTS, v, a, b);
+    toast("取消了你剪的这一段（回到自动）。如果还是暗的，再按一次 X 放回");
+  } else if (share >= 0.5){
+    CUTS = addIv(CUTS, v, a, b); KEEPS = subIv(KEEPS, v, a, b);
+    toast("剪掉了（正在播前后听听看）");
+  } else {
+    KEEPS = addIv(KEEPS, v, a, b); CUTS = subIv(CUTS, v, a, b);
+    toast("放回影片了（正在播前后听听看）");
+  }
+  WAVE.sel = null; drawWave(); drawMarks(); status();
+  refreshKeep();
+  playRange(v, Math.max(WAVE.t0, a - 1.5), Math.min(WAVE.t1 + 1, b + 1.5), true);
+}
+// your own edits by ear (cuts, put-backs) at time t
+function myEditAt(v, t){
+  const c = CUTS.find(c => c.voice === v && t >= c.from && t <= c.to); if (c) return {...c, kind: "cut"};
+  const k = KEEPS.find(c => c.voice === v && t >= c.from && t <= c.to); if (k) return {...k, kind: "keep"};
+  return null;
+}
+// Delete on a waveform selection: your cuts and put-backs inside it are taken away (the automatic cut decides again)
+function removeMine(v, a, b){
+  const hit = CUTS.concat(KEEPS).some(c => c.voice === v && c.to > a + 0.005 && c.from < b - 0.005);
+  if (!hit){ toast("这里没有你剪的或放回的"); return; }
+  remember();
+  CUTS = subIv(CUTS, v, a, b); KEEPS = subIv(KEEPS, v, a, b);
+  if (WAVE) WAVE.sel = null;
+  drawWave(); drawMarks(); status(); refreshKeep();
+  toast("取消了（回到自动）");
+}
+// the list of your edits by ear under the waveform, each with ✕
+function drawMarks(){
+  const W_ = WAVE; if (!W_ || !W_.canvas.isConnected) return;
+  const box = W_.canvas.parentNode.querySelector(".marks"); if (!box) return;
+  const fmt = t => `${Math.floor(t / 60)}:${(t % 60).toFixed(2).padStart(5, "0")}`;
+  const mine = CUTS.map(c => ({...c, kind: "cut"})).concat(KEEPS.map(c => ({...c, kind: "keep"})))
+    .filter(c => c.voice === W_.voice && c.to > W_.t0 && c.from < W_.t1).sort((x, y) => x.from - y.from);
+  box.innerHTML = "";
+  mine.forEach(c => {
+    const el = document.createElement("span"); el.className = "mk " + c.kind;
+    el.innerHTML = `${c.kind === "cut" ? "✂ 你剪的" : "＋ 你放回的"} ${fmt(c.from)}–${fmt(c.to)} <b title="取消（回到自动）">✕</b>`;
+    el.onclick = e => {
+      e.stopPropagation();
+      if (e.target.tagName === "B"){ removeMine(c.voice, c.from, c.to); return; }
+      W_.sel = [c.from, c.to]; drawWave(); toast("选好了：空格听，Delete 取消它");
+    };
+    box.appendChild(el);
+  });
+}
+window.addEventListener("resize", () => { if (WAVE){ WAVE.peaks = null; drawWave(); } });
+
+async function runCheck(){
+  $("#checksum").textContent = "检查中…（第一次要等十几秒）";
+  const body = {rows: ROWS.map(r => ({cid: r.cid, raw: r.raw, shown: serial(r.chars), auto: r.auto})), restore: restoreList(), cuts: CUTS, keeps: KEEPS};
+  const d = await fetch(`/api/check/${encodeURIComponent(VID)}`, {method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(body)}).then(r => r.json()).catch(e => ({error: String(e)}));
+  if (d.error){ $("#checksum").textContent = "检查出错：" + d.error; return; }
+  CHECK = d.items.map(x => { const m = x.match(/^(\S+)\s+(.+)@([\d.]+)\s+(.*)$/); return m ? {when: m[1], voice: m[2], t: +m[3], what: m[4]} : null; }).filter(Boolean);
+  drawCheck(); if (WAVE) drawWave();
+}
+const CK_ZH = [[/kept word not heard: (.*?) \(kept.*$/, "没剪的「$1」听不到"], [/cut word still heard: (.*?) \(kept.*$/, "剪掉的「$1」还听得到"],
+  [/voice lost: .*?(\(after (.*)\))?$/, "这里有声音不见了"], [/time cut still heard: .*$/, "按时间剪的还听得到"]];
+function drawCheck(){
+  const box = $("#checklist"); box.innerHTML = "";
+  if (!CHECK.length){ $("#checksum").textContent = $("#checksum").textContent.startsWith("检查中") ? "全部通过 ✓" : ""; return; }
+  $("#checksum").textContent = `${CHECK.length} 个地方请听一下（点它跳过去）`;
+  CHECK.forEach(c => {
+    let zh = c.what; for (const [re, to] of CK_ZH) if (re.test(zh)){ zh = zh.replace(re, to); break; }
+    const el = document.createElement("span"); el.className = "ck"; el.textContent = `${c.when} ${zh}`;
+    el.onclick = () => {
+      const r = ROWS.find(r => r.voice === c.voice && rowWords(r).length && rowWords(r)[0].s - 0.5 <= c.t && Math.max(...rowWords(r).map(w => w.e)) + 0.6 >= c.t)
+             || ROWS.find(r => r.voice === c.voice && r.words.length && r.words[0].s - 1 <= c.t && r.words[r.words.length - 1].e + 1 >= c.t);
+      if (!r){ toast("找不到这一句"); return; }
+      sel = null; selectRow(r.i); document.getElementById("r" + r.i).scrollIntoView({block: "center"});
+    };
+    box.appendChild(el);
+  });
+}
+$("#checkBtn").onclick = runCheck;
+
+// ---------- events ----------
+$("#list").addEventListener("click", e => {
+  if (dragged) return;
+  const rowEl = e.target.closest(".row"); if (!rowEl) return;
+  const i = +rowEl.dataset.row;
+  if (e.target.closest(".play")){ selectRow(i); play(i); return; }
+  if (e.target.closest(".add")){ selectRow(i); editBack(i); return; }
+  if (e.target.closest(".text") && !e.target.closest(".edit")){ selectRow(i); startEdit(i); return; }
+  const w = e.target.closest(".w");
+  if (w && w.dataset.tail != null){
+    const r = ROWS[i], k = +w.dataset.tail;
+    remember();
+    r.back = k < r.back ? k : k + 1;          // put back up to this word, or take back from this word on
+    r.backText = null;
+    selectRow(i); touch([i]);
+    toast(r.back ? `放回影片：${r.tail.slice(0, r.back).map(x => x.t).join("")}（保存后，下次出片会加进声音和字幕）` : "取消放回");
+    return;
+  }
+  if (w){
+    const k = +w.dataset.k;
+    if (!e.shiftKey && ROWS[i].owned[k] && ROWS[i].owned[k].notext){ selectRow(i); writeIn(i, k); return; }
+    if (e.shiftKey && sel && sel.row === i){ sel = {row: i, a: Math.min(sel.anchor, k), b: Math.max(sel.anchor, k), anchor: sel.anchor}; }
+    else { const old = sel && sel.row; sel = {row: i, a: k, b: k, anchor: k}; if (old != null && old !== i) drawRow(ROWS[old]); }
+    if (WAVE) WAVE.sel = null;
+    selectRow(i); return;
+  }
+  selectRow(i);
+});
+$("#list").addEventListener("dblclick", e => {
+  const w = e.target.closest(".w"); if (!w) return;
+  if (w.dataset.tail != null){ const r = ROWS[+w.dataset.row]; $("#orig").checked = true; playFrom(r.i, r.tail[+w.dataset.tail]); return; }
+  play(+w.dataset.row, +w.dataset.k);
+});
+let drag = null;               // a word being moved: follows the mouse, dropped on the row above or below
+$("#list").addEventListener("pointerdown", e => {
+  const w = e.target.closest(".w"); if (!w || e.button !== 0 || w.dataset.tail != null) return;
+  drag = {row: +w.dataset.row, k: +w.dataset.k, x: e.clientX, y: e.clientY, on: false, ghost: null, text: w.textContent};
+});
+document.addEventListener("pointermove", e => {
+  if (!drag) return;
+  if (!drag.on && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 8) return;
+  if (!drag.on){
+    drag.on = true;
+    const g = drag.ghost = document.createElement("span");
+    g.className = "w sel"; g.textContent = drag.text + " ↕";
+    g.style.cssText = "position:fixed;z-index:9;pointer-events:none;opacity:.9";
+    document.body.appendChild(g);
+  }
+  drag.ghost.style.left = (e.clientX + 8) + "px"; drag.ghost.style.top = (e.clientY - 12) + "px";
+  const r = document.elementFromPoint(e.clientX, e.clientY)?.closest(".row");
+  document.querySelectorAll(".row.drop").forEach(x => x !== r && x.classList.remove("drop"));
+  if (r && +r.dataset.row !== drag.row) r.classList.add("drop");
+});
+document.addEventListener("pointerup", e => {
+  if (!drag) return;
+  const d = drag; drag = null;
+  document.querySelectorAll(".row.drop").forEach(x => x.classList.remove("drop"));
+  if (!d.on) return;
+  d.ghost.remove();
+  dragged = true; setTimeout(() => dragged = false, 0);
+  const r = document.elementFromPoint(e.clientX, e.clientY)?.closest(".row");
+  if (r && +r.dataset.row !== d.row) moveWord(d.row, d.k, +r.dataset.row);
+});
+let dragged = false;
+
+document.addEventListener("keydown", e => {
+  if (editing >= 0 || e.target.tagName === "SELECT") return;
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s"){ e.preventDefault(); save(); return; }
+  if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === "y" || (e.shiftKey && e.key.toLowerCase() === "z"))){ e.preventDefault(); redo(); return; }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z"){ e.preventDefault(); undo(); return; }
+  if (e.key === "Delete"){
+    e.preventDefault();
+    if (WAVE && WAVE.row === cur && WAVE.sel) removeMine(WAVE.voice, WAVE.sel[0], WAVE.sel[1]); else toggleDeleteRow(cur);
+    return;
+  }
+  if (e.key === " "){
+    e.preventDefault();
+    if (playing) stop();
+    else if (WAVE && WAVE.row === cur && WAVE.sel) playRange(WAVE.voice, WAVE.sel[0], WAVE.sel[1], false);
+    else play(cur, sel && sel.row === cur ? sel.a : null);
+    return;
+  }
+  if (e.key.toLowerCase() === "x"){ e.preventDefault(); if (WAVE && WAVE.row === cur && WAVE.sel) toggleTimeCut(); else toggleCut(); return; }
+  // R = put back, as on the studio page (X still does both): only acts on a dragged stretch that is not in the video
+  if (e.key.toLowerCase() === "r" && !e.ctrlKey && !e.metaKey){
+    e.preventDefault();
+    if (!(WAVE && WAVE.row === cur && WAVE.sel)){ toast("先在声音图上拖一段暗的地方，再按 R 放回去"); return; }
+    if (KEEP && keptShare(WAVE.voice, WAVE.sel[0], WAVE.sel[1]) >= 0.5){ toast("这一段本来就在影片里（要剪掉按 X）"); return; }
+    toggleTimeCut(); return;
+  }
+  if (e.key === "Escape"){ stop(); if (WAVE) WAVE.sel = null; if (sel){ const o = sel.row; sel = null; drawRow(ROWS[o]); } if (WAVE) drawWave(); return; }
+  if (e.key === "ArrowDown" || e.key === "ArrowUp"){
+    e.preventDefault();
+    const i = Math.max(0, Math.min(ROWS.length - 1, cur + (e.key === "ArrowDown" ? 1 : -1)));
+    sel = null; selectRow(i); document.getElementById("r" + i).scrollIntoView({block: "nearest"});
+  }
+  if (e.key === "Enter"){ e.preventDefault(); startEdit(cur); }
+});
+$("#playBtn").onclick = () => play(cur, sel && sel.row === cur ? sel.a : null);
+$("#stopBtn").onclick = stop;
+$("#cutBtn").onclick = toggleCut;
+$("#saveBtn").onclick = save;
+try { const m = localStorage.getItem("gs-editor-mode"); if (m) $("#mode").value = m; } catch (e) {}
+$("#mode").onchange = () => { try { localStorage.setItem("gs-editor-mode", $("#mode").value); } catch (e) {} $("#mode").blur(); };
+$("#orig").onchange = () => $("#orig").blur();
+$("#undoBtn").onclick = undo;
+$("#redoBtn").onclick = redo;
+$("#delBtn").onclick = () => toggleDeleteRow(cur);
+$("#resetBtn").onclick = () => resetRow(cur);
+// the row's time in the video ("02:06.14") in seconds
+const whenSec = r => { const m = /^(\d+):(\d+(?:\.\d+)?)$/.exec((r && r.when) || ""); return m ? +m[1] * 60 + +m[2] : 0; };
+// the review page opens on the same video, at the sentence selected here (as the studio pages do)
+$("#revLink").onclick = e => { e.preventDefault(); if (VID) location.href = `/review?vid=${encodeURIComponent(VID)}&t=${Math.max(0, whenSec(ROWS[cur]) - 1).toFixed(2)}`; };
+window.addEventListener("beforeunload", e => { if (ROWS.some(r => r.dirty)){ e.preventDefault(); e.returnValue = ""; } });
+
+async function load(vid){
+  if (ROWS.some(r => r.dirty) && !confirm("还有没保存的修改，确定换别的影片吗？")){ $("#vid").value = VID; return; }
+  stop();
+  VID = vid; HIST.length = 0; FUT.length = 0; histBtns(); sel = null; cur = 0; editing = -1;
+  try { localStorage.setItem("gs-editor-vid", vid); } catch (e) {}
+  $("#status").textContent = "载入中…";
+  const d = await fetch(`/api/sheet/${encodeURIComponent(vid)}`).then(r => r.json());
+  if (d.error){ alert(d.error); return; }
+  MTIME = d.mtime; CUTS = d.cuts || []; CUTS0 = JSON.stringify(CUTS); KEEPS = d.keeps || []; KEEPS0 = JSON.stringify(KEEPS);
+  WAVE = null; KEEP = null; keepStale = true; CHECK = []; drawCheck();
+  ROWS = d.rows.map((r, i) => ({...r, i, chars: parse(r.shown), orig: r.shown, dirty: false, owned: [], back: 0, backText: null,
+                               auto0: serial(parse(r.auto || ""))}));
+  ROWS.forEach(r => {                       // words put back earlier
+    if (!r.tail.length) return;
+    const g = (d.restore || []).find(x => x.voice === r.voice && Math.abs(x.from - r.tail[0].ws) < 0.03);
+    if (g){ r.back = r.tail.filter(w => w.we <= g.to + 0.01).length; r.backText = g.text != null && g.text !== backRaw(r) ? g.text : null; }
+  });
+  ROWS.forEach(r => { r.back0 = r.back; r.backText = r.backText != null ? r.backText : null; r.backText0 = r.backText; });
+  ROWS.forEach(r => { r.orig = serial(r.chars); });     // [..] and 〔..〕 count as the same
+  realign();
+  drawAll();
+  status();
+  fetchKeep();
+}
+
+// ---------- shared by both pages (Round 4) ----------
+// Q18 the trip menu: the server works on one trip at a time; switching reloads the page on the new trip
+async function tripMenu(sel, isDirty){
+  const d = await fetch("/api/trips").then(r => r.json()).catch(() => null);
+  if (!d) return;
+  sel.innerHTML = "";
+  d.trips.forEach(t => { const o = document.createElement("option"); o.value = o.textContent = t; sel.appendChild(o); });
+  sel.value = d.current;
+  sel.onchange = async () => {
+    if (isDirty() && !confirm("还有没保存的修改，确定换别的旅行吗？")){ sel.value = d.current; return; }
+    await fetch(`/api/trip/${encodeURIComponent(sel.value)}`, {method: "POST", headers: {"Content-Type": "application/json"}, body: "{}"});
+    location.reload();
+  };
+}
+// Q19 the tools were updated: with nothing unsaved the server restarts itself and the page reloads ("已更新");
+// with unsaved edits a banner waits until they are saved
+function watchTools(isDirty){
+  let warned = false;
+  setInterval(async () => {
+    const d = await fetch(`/api/version?dirty=${isDirty() ? 1 : 0}`).then(r => r.json()).catch(() => null);
+    if (!d || !d.changed) return;
+    if (d.restart){
+      try { sessionStorage.setItem("gs-tools-updated", "1"); } catch (e) {}
+      setTimeout(() => location.reload(), 6000);
+    } else if (!warned){
+      warned = true;
+      const b = document.createElement("div");
+      b.textContent = "工具已更新：保存现在的修改后，页面会自动重新载入。";
+      b.style.cssText = "position:fixed;top:0;left:0;right:0;padding:8px;background:#ffd76a;color:#222;text-align:center;z-index:99";
+      document.body.appendChild(b);
+    }
+  }, 15000);
+  try {
+    if (sessionStorage.getItem("gs-tools-updated")){ sessionStorage.removeItem("gs-tools-updated");
+      setTimeout(() => { const s = document.querySelector("#status"); if (s) s.textContent = "工具已更新，已重新载入"; }, 1500); }
+  } catch (e) {}
+}
+(async () => {
+  const unsaved = () => ROWS.some(r => r.dirty);
+  tripMenu($("#trip"), unsaved);
+  watchTools(unsaved);
+  const d = await fetch("/api/sheets").then(r => r.json());
+  document.title = `字幕剪辑 · ${d.trip}`;
+  const s = $("#vid");
+  d.sheets.forEach(v => { const o = document.createElement("option"); o.value = o.textContent = v; s.appendChild(o); });
+  // ?vid=<video>&t=<seconds>: from the review page's link or its E key: this video, at the sentence said at that time
+  const q = new URLSearchParams(location.search);
+  let want = q.get("vid"); if (!want) try { want = localStorage.getItem("gs-editor-vid"); } catch (e) {}
+  if (want && d.sheets.includes(want)) s.value = want;
+  s.onchange = () => load(s.value);
+  await load(s.value);
+  const t = parseFloat(q.get("t"));
+  if (q.get("vid") === VID && isFinite(t) && ROWS.length){
+    let best = 0;
+    ROWS.forEach(r => { if (r.words.length && whenSec(r) <= t + 0.3 && whenSec(r) >= whenSec(ROWS[best])) best = r.i; });
+    selectRow(best);
+    const el = document.getElementById("r" + best); if (el) el.scrollIntoView({block: "center"});
+    history.replaceState(null, "", "/");
+  }
+})();
+</script>
+</body>
+</html>

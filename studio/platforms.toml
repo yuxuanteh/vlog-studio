@@ -1,0 +1,90 @@
+# What each platform accepts and what its viewers see. Used by vlog_platform.py and by the skill when it writes the
+# upload package.
+#
+# PLATFORMS CHANGE THEIR RULES OFTEN. `checked` is when each row was last looked at. Before relying on a limit that
+# matters for a video (a length, a link rule), Claude looks at the platform's own help page and corrects this file.
+# Add a platform by copying a block. Times are seconds, sizes pixels, bytes where it says so.
+
+[youtube]
+checked = "2025-12"
+name = "YouTube (long video)"
+shape = "wide"                  # 16:9
+max_seconds = 43200             # 12 hours (verified accounts); 15 minutes for an unverified one
+thumbnail = [1280, 720]
+thumbnail_max_bytes = 2000000
+links_in_text = true            # links in the description can be clicked
+chapters = true                 # 00:00 lines in the description become chapters (at least three, each 10 s or longer)
+title_max = 100
+text_max = 5000
+subtitles = "files"             # subtitle files are uploaded per language; burned-in ones stay as they are
+notes = "End screen in the last 5-20 s; the studio's end card keeps its slots clear."
+
+[youtube_shorts]
+checked = "2025-12"
+name = "YouTube Shorts"
+shape = "tall"                  # 9:16 (square is accepted too)
+max_seconds = 180
+links_in_text = false           # links in a Short's description cannot be clicked: name the related video instead
+title_max = 100
+text_max = 5000
+safe_bottom = 0.20              # share of the height at the bottom covered by the title and buttons
+safe_right = 0.14
+notes = "A related long video can be attached in the upload settings."
+
+[instagram]
+checked = "2025-12"
+name = "Instagram Reels"
+shape = "tall"
+max_seconds = 180               # longer uploads are accepted but are not recommended to people who do not follow you
+cover = [1080, 1920]
+cover_safe = [1080, 1350]       # the profile grid crops the cover (3:4, centred): words and faces inside this box are always kept
+links_in_text = false           # a caption link cannot be clicked: point to the link in the profile
+text_max = 2200
+hashtags_max = 30               # a few that fit work better than many
+safe_bottom = 0.22
+safe_right = 0.14
+notes = "The first line of the caption is what shows before 'more'. Music from another platform's library may be muted: check the track's licence covers Instagram."
+
+[facebook]
+checked = "2025-12"
+name = "Facebook Reels"
+shape = "tall"
+max_seconds = 180
+links_in_text = true            # links can be clicked in a post or a comment, less reliably in a Reel caption
+text_max = 2200
+safe_bottom = 0.22
+safe_right = 0.14
+notes = "Posted together with Instagram from Meta Business Suite as a Reel (a normal post does not take 9:16 video)."
+
+[tiktok]
+checked = "2025-12"
+name = "TikTok"
+shape = "tall"
+max_seconds = 600               # uploads may be longer; under a minute or two travels best
+links_in_text = false
+text_max = 2200
+safe_bottom = 0.22
+safe_right = 0.14
+notes = "A visible watermark of another platform lowers reach: upload the clean file, never a download from another app."
+
+[xiaohongshu]
+checked = "2025-12"
+name = "小红书"
+shape = "tall"                  # 3:4 and 9:16 both work; the cover is shown at 3:4 in the feed
+max_seconds = 900
+cover_safe = [1080, 1440]
+links_in_text = false
+title_max = 20
+text_max = 1000
+notes = "The title is short (about 20 characters). Outside links and other platforms' names are held back."
+
+[bilibili]
+checked = "2025-12"
+name = "哔哩哔哩"
+shape = "wide"
+max_seconds = 36000
+thumbnail = [1146, 717]         # 16:10 cover
+links_in_text = true
+title_max = 80
+text_max = 2000
+notes = "A 16:9 video with its own cover; tags and a category are chosen at upload."
