@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.1 (2026-11-18)
+- Subtitle files are named `subtitles.<language>_<COUNTRY>.srt` and `short.<language>_<COUNTRY>.srt`: Facebook accepts
+  no other shape.
+- Cover rules: the presenter may be on a short cover (cut out and layered, words never on them), ideas as text
+  first, one file for the Shorts thumbnail and the Reels cover.
+- Platform rules read on the platforms' help pages (2026-11): YouTube thumbnails (3840×2160 recommended, 2 MB from a
+  phone, 50 MB from a computer), Shorts thumbnails, Instagram Reels (up to 20 minutes, not recommended to new
+  audiences past 3), TikTok (uploads up to 60 minutes), Facebook's subtitle file names and its list of accepted
+  language codes. Each block of `platforms.toml` now says what was verified. 小红书 and 哔哩哔哩 are unverified.
+
 ## 1.0.0 (2026-11-18)
 
 First public version: the vlog and site-visit pipeline as it runs today, opened up for any channel.

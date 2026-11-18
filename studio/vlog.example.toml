@@ -47,6 +47,8 @@ length_unit = "words"           # "cjk" for Chinese / Japanese (subtitles counte
 pace = 2.6                      # words (or characters) a second, for narration that is written but not recorded yet
 subtitle_second = ""            # a translated subtitle file ("en", "zh", ...); "" = none
 subtitle_third = ""             # a second translation; "" = none
+# subtitle_locales = { en = "en_AU" }   # country part of subtitle file names (subtitles.en_GB.srt); default: from the language
+british_spelling = false        # true: English subtitle files are named en_GB instead of en_US
 fixes = []                      # words the speech model always mishears: [["heard", "meant"], ...]
 words = []                      # names a Chinese word splitter must keep whole
 meta = []                       # things you say to the editor, not the viewer ("I filmed that too"): cut by default

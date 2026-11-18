@@ -5,7 +5,8 @@ exported; the v02 teaser's were made by hand on the night it went out).
 
 1. Reads <local>/render/<trip>/<id>/subs.ass (the final; falls back to <id>-phone) - the Chinese exactly as burned in,
    at the exact times.
-2. Writes the Chinese srt into publish/ (long: publish/zh.srt; short: publish/short/short-zh.srt).
+2. Writes the spoken-language srt into publish/ (long: publish/subtitles.<lang>_<COUNTRY>.srt; short:
+   publish/short/short.<lang>_<COUNTRY>.srt: the name shape Facebook asks for, vlog_env.srt_name).
 3. Keeps work/subtitles/<id>.translate.tsv (start, end, zh, en, ja). New cues are added with en / ja empty; Claude
    fills them by the translation golden rule (same meaning, natural, not word for word; a line break is written \\n).
 4. When every row has en and ja, writes the en / ja srt next to the zh one. If the burned-in Chinese changed since a
@@ -61,7 +62,7 @@ def main(trip, eid):
     if not video:
         video = next(p.name for p in (tdir / "videos").iterdir() if p.name.startswith(eid.split("-")[0]))
     pub = tdir / "videos" / video / "publish"
-    out = (lambda lang: pub / "short" / f"short-{lang}.srt") if tall else (lambda lang: pub / f"{lang}.srt")
+    out = (lambda lang: pub / "short" / vlog_env.srt_name(lang, short=True)) if tall else (lambda lang: pub / vlog_env.srt_name(lang))
     write_srt(out(SRC), cs)
 
     tsv = tdir / "work" / "subtitles" / f"{eid}.translate.tsv"

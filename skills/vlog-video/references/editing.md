@@ -85,7 +85,10 @@ Burned in, following the sheet exactly: the director's rows, splits and joins, i
 20 units on a horizontal video (a Chinese character = 1, about two letters = 1), up to two lines of 24 on a vertical
 one, placed above the platform's buttons. After the final: `vlog_srt.py <trip> <id>` writes the spoken-language
 subtitle file and `work/subtitles/<id>.translate.tsv`; fill the translation columns (`[language] subtitle_second`,
-`_third`), run it again, and the translated files appear in `publish/`. A subtitle that changed since it was
+`_third`), run it again, and the translated files appear in `publish/`. The files are named
+`subtitles.<language>_<COUNTRY>.srt` (a short: `short/short.<language>_<COUNTRY>.srt`), e.g. `subtitles.en_GB.srt`:
+Facebook accepts subtitle files only in this shape, and YouTube takes the same files. The country follows the
+language; `[language] subtitle_locales = {en = "en_AU"}` sets it by hand. A subtitle that changed since it was
 translated stops it.
 
 ## Music (`TRACKS`, the `music_fit` part)
@@ -114,7 +117,20 @@ A shot whose shake is over the limit is steadied by itself (a slight crop); `^` 
 on site: a soft or blown-out shot is replaced, not rescued.
 
 ## Thumbnails and covers
-Ideas first, as text (one line each: what is seen, the two or three words, why someone would tap), with the frame
-each would use; made after the director's pick. `vlog_thumbs.py <trip> grab <clip>:<second>` pulls full-size
+**Ideas first, as text**, for thumbnails and for short covers alike (one line each: what is seen, the two or three
+words, why someone would tap), with the frame or photo each would use. Make only what the director picks or
+corrects. The idea belongs to that video (a pair of pictures, an object, a moment from the footage), never a fixed
+layout with the title swapped.
+- **The presenter may be on a thumbnail or a short cover.** When they are, never a plain photo with words on it
+  (flat, no depth): cut them out, enlarge them and put them over the same picture or another one as the
+  background, so there are layers. The words never overlap them. If the frame cuts them at an edge, the cut-out
+  runs off the same edge (no floating head).
+- A cover without the presenter is fine too when the place carries it.
+- **A short's cover** is 1080×1920 with the words and the subject inside the centred 1080×1350 (profile grids
+  crop the rest), text at least 80 px high. **The same file is the YouTube Shorts thumbnail and the Reels cover.**
+- Two to four words; one real place from the trip; no blur on a background that is itself the subject. A drawn
+  mark (an arrow, a circle) only where it points at something true.
+- Pick the exact frame by pulling it and looking (a contact-sheet tile can be a second off: eyes closed, arm
+  down), and look at every picture at quarter size before sending. `vlog_thumbs.py <trip> grab <clip>:<second>` pulls full-size
 stills, `cut` cuts the person out (the `cutout` part), `check` checks sizes and file limits. The design is a small
 file with the trip (`work/thumbs/layout.py`). Sizes and each platform's crop: platforms.md.

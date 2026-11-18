@@ -8,7 +8,7 @@
     {
       "name": "vlog-studio",
       "source": "./",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "description": "Vlog pipeline from real footage: index, story plan, word-level editing and review pages, privacy check, music, horizontal and vertical finals, per-platform upload package. Hardware check and per-part install at setup."
     }
   ]

@@ -1,6 +1,6 @@
 {
   "name": "vlog-studio",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Make travel vlogs and site-visit videos from your own footage with Claude as the editing crew: horizontal videos, vertical Reels / Shorts or both, with a footage index, a story planned on paper, word-level editing and review pages, privacy check, music fitting, and an upload package per platform. Setup checks your computer, estimates the time per step and asks before installing each part.",
   "author": {
     "name": "GoldenSpike (金釘子)"

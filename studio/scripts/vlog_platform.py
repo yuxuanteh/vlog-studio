@@ -51,9 +51,12 @@ def check(video, names, cover=None, text=None):
         if cover:
             from PIL import Image
             cw, ch = Image.open(cover).size
-            want = R.get("thumbnail") or R.get("cover")
-            if want and (cw, ch) != tuple(want):
-                probs.append(f"cover is {cw}x{ch}, wanted {want[0]}x{want[1]}")
+            ratio = R.get("thumbnail_ratio") or R.get("cover_ratio")
+            if ratio and abs(cw / ch - ratio[0] / ratio[1]) > 0.02:
+                probs.append(f"cover is {cw}x{ch}, wanted {ratio[0]}:{ratio[1]}")
+            least = R.get("thumbnail_min") or R.get("cover_min")
+            if least and (cw if cw > ch else ch) < least:
+                probs.append(f"cover is {cw}x{ch}, smaller than the {least} px the platform asks for")
             if R.get("thumbnail_max_bytes") and Path(cover).stat().st_size > R["thumbnail_max_bytes"]:
                 probs.append(f"cover file is {Path(cover).stat().st_size / 1e6:.1f} MB, over {R['thumbnail_max_bytes'] / 1e6:.0f} MB")
         if text:
@@ -66,6 +69,10 @@ def check(video, names, cover=None, text=None):
             if not R.get("links_in_text", True) and re.search(r"https?://|www\.", t):
                 probs.append("the text holds a link, which cannot be clicked here: point to the profile or name the video instead")
         note = []
+        if dur > R.get("recommended_seconds", 1e9) and dur <= R.get("max_seconds", 1e9):
+            note.append(f"{dur:.0f} s is allowed, but over {R['recommended_seconds']} s it reaches fewer new viewers")
+        if R.get("verified"):
+            note.append("read on its help page: " + R["verified"])
         if R.get("cover_safe"):
             note.append(f"cover: keep words and faces inside the centred {R['cover_safe'][0]}x{R['cover_safe'][1]}")
         if R.get("safe_bottom"):

@@ -1,7 +1,8 @@
 # Platforms: what differs, and the upload package
 
 The channel's platforms are in `[platforms] post_to` (vlog.toml) and `CHANNEL.md`. The numbers (lengths, sizes,
-character limits) are in `<studio>/platforms.toml`, each block with the month it was last checked.
+character limits) are in `<studio>/platforms.toml`. Each block says the month it was last read on the platform's own
+help page (`checked`) and which of its lines that reading covered (`verified`); the rest is general knowledge.
 
 **Platforms change their rules often.** Before a limit decides something (a video cut to fit a length, a link left
 out), open that platform's own help page, and correct `platforms.toml` and its `checked` month. Say when a rule
@@ -45,10 +46,14 @@ hype, no symbols at the start of lines, few or no emoji. Translations follow the
 after the cut is fixed.
 
 ## Covers and thumbnails
-- Long video: 16:9 thumbnail, under the file-size limit, readable at phone size.
+- Long video: 16:9 thumbnail, as large as the file-size limit allows (YouTube recommends 3840×2160 and takes 2 MB
+  from a phone, 50 MB from a computer), readable at phone size.
 - Vertical: a 1080×1920 cover; **the profile grid crops it**, so words and faces go inside the centred safe box
-  (`cover_safe`). One cover serves every vertical platform when it respects the smallest safe box.
-- Ideas first as text; made after the director's pick (editing.md).
+  (`cover_safe`, 1080×1350). **One file is both the YouTube Shorts thumbnail and the Reels cover**, and serves
+  every other vertical platform too.
+- The presenter may be on it: cut out and layered over the picture, words never on them; a cover without them is
+  fine when the place carries it. Ideas first as text; made after the director's pick (editing.md "Thumbnails and
+  covers").
 
 ## The upload package: `<trip>/videos/<video>/publish/publish.md`
 One section per platform the channel posts to, in the order the director uploads, each complete in itself so they
@@ -56,7 +61,9 @@ paste from top to bottom:
 1. the file to upload and its cover;
 2. title / caption / description, copy-ready, in that platform's form;
 3. settings worth setting there (playlist or series, related video, audience, location tag, who can comment);
-4. subtitles: which files to upload, or "burned in";
+4. subtitles: which files to upload, or "burned in". Subtitle files are named `subtitles.<language>_<COUNTRY>.srt`
+   / `short.<language>_<COUNTRY>.srt`: Facebook takes them only with such names (list the short's files under each
+   Reel for Facebook), YouTube takes the same files;
 5. the result of `vlog_platform.py check` for that platform, and anything it warned about;
 6. when to post, if the director has a plan (their plan is a record, never a deadline).
 At the end: the sources behind what is said, the music used with its credit lines, and a line on anything that
